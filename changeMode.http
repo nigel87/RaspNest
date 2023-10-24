@@ -1,0 +1,7 @@
+POST http://localhost:5000/changeMode
+Content-Type: application/json
+
+{
+  "modeId": 1,
+  "option" : "ciao"
+}
