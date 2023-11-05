@@ -87,6 +87,8 @@ static void add_micros(struct timespec *accumulator, long micros) {
   }
 }
 
+
+
 // Read line and return if it changed.
 typedef uint64_t stat_fingerprint_t;
 static bool ReadLineOnChange(const char *filename, std::string *out,
@@ -239,6 +241,9 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, InterruptHandler);
   signal(SIGINT, InterruptHandler);
 
+
+
+
   printf("CTRL-C for exit.\n");
 
   // Create a new canvas to be used with led_matrix_swap_on_vsync
@@ -300,6 +305,15 @@ int main(int argc, char *argv[]) {
       x = x_orig + ((scroll_direction > 0) ? -length : 0);
       if (loops > 0) --loops;
     }
+
+
+
+   if (interrupt_received) {
+     // Clear the display or stop the scrolling text
+     offscreen_canvas->Fill(0, 0, 0);  // Fill with black to clear the display
+     interrupt_received = false;
+     break;  // Exit the loop
+   }
 
     // Make sure render-time delays are not influencing scroll-time
     if (speed > 0) {

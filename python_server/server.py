@@ -14,6 +14,14 @@ sys.path.append(project_root)
 cherrypy.config.update({'server.socket_host': '192.168.1.143'})
 
 class LEDMatrixDisplayService:
+
+    def stopScrollingText(self):
+        try:
+            # Send SIGINT signal to stop the scrolling text
+            subprocess.run(["pkill", "-2", "text-scroller"])  # Use your program name here
+        except subprocess.CalledProcessError:
+            pass  # Handle any errors if needed
+
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
@@ -21,6 +29,9 @@ class LEDMatrixDisplayService:
         data = cherrypy.request.json
         mode = data.get('mode', 0)  # Default mode is 0
         text = data.get('text', 'Hello, World!')  # Default text
+
+        # Call the function to stop scrolling text
+        self.stopScrollingText()
 
         # Define the folder containing the C++ binary
         cpp_binary_folder = os.path.join(os.path.dirname(__file__), '../c')
@@ -35,7 +46,9 @@ class LEDMatrixDisplayService:
             return {"message": "Invalid mode"}
 
         try:
+            print("Calling C++ Library")
             subprocess.run(args, check=True)
+            print("c++ called successfully")
         except subprocess.CalledProcessError as e:
             return {"message": f"Error executing program: {str(e)}"}
 

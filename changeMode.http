@@ -2,7 +2,7 @@
 POST http://192.168.1.143:8080/displayMessage
 Content-Type: application/json
 
-{"mode": 0, "text": "ciao"}
+{"mode": 0, "text": "ciao ciao"}
 
 ###
 
