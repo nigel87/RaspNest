@@ -1,8 +1,8 @@
 # curl -X POST -H "Content-Type: application/json" -d '{"mode": 0, "text": "ciao"}' http://192.168.1.143:8080/displayMessage
-POST http://192.168.1.143:8080/displayMessage
+POST http://192.168.1.143:8080/display_message
 Content-Type: application/json
 
-{"mode": 0, "text": "ciao ciao"}
+{"mode": 0, "text": "hola"}
 
 ###
 
