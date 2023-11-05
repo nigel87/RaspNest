@@ -36,7 +36,15 @@ led-image-viewer: led-image-viewer.o $(RGB_LIBRARY)
 video-viewer: video-viewer.o $(RGB_LIBRARY)
 	$(CXX) $(CXXFLAGS) video-viewer.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS) $(AV_LDFLAGS)
 
+# Add a rule for text-fixed.cpp
+text-fixed: text-fixed.o $(RGB_LIBRARY)
+	$(CXX) $(CXXFLAGS) text-fixed.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS)
+
 %.o : %.cc
+	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
+
+# Add a rule to compile text-fixed.cpp into an object file
+text-fixed.o: text-fixed.cpp
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
 
 led-image-viewer.o : led-image-viewer.cc
