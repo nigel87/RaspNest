@@ -2,7 +2,7 @@ import sys
 sys.path.append('../')
 import os
 
-from modes import mode0, mode1
+from modes import mode0, mode1, mode2
 from scrolling_text_controller import  stop_scrolling_text
 
 # Set the working directory to the project folder
@@ -37,6 +37,8 @@ class LEDMatrixDisplayService:
             return mode0.run(text, cpp_binary_folder)
         elif mode == 1:
             return mode1.run(text, cpp_binary_folder)
+        elif mode == 2:
+            return mode2.run( cpp_binary_folder)
         else:
             return {"message": "Invalid mode"}
 
