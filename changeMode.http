@@ -1,7 +1,8 @@
-POST http://192.168.1.43:8080/changeMode
+# curl -X POST -H "Content-Type: application/json" -d '{"mode": 0, "text": "ciao"}' http://192.168.1.143:8080/displayMessage
+POST http://192.168.1.143:8080/displayMessage
 Content-Type: application/json
 
-{
-  "modeId": 1,
-  "option" : "ciao"
-}
+{"mode": 0, "text": "ciao"}
+
+###
+
