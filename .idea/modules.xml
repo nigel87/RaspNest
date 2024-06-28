@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/RaspNest.iml" filepath="$PROJECT_DIR$/.idea/RaspNest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/RaspNest.iml" filepath="$PROJECT_DIR$/RaspNest.iml" />
     </modules>
   </component>
 </project>
