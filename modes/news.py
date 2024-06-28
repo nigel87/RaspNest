@@ -5,13 +5,13 @@ import threading
 from python_server.scrolling_text_controller import start_scrolling_text, stop_scrolling_text
 import feedparser
 
-RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
 
-def run(cpp_binary_folder, stop_event):
+
+def run(rss_feed_url, cpp_binary_folder, stop_event):
     # Stop any existing scrolling text
     stop_scrolling_text()
 
-    feed = feedparser.parse(RSS_FEED_URL)
+    feed = feedparser.parse(rss_feed_url)
     cpp_binary = os.path.join(cpp_binary_folder, 'text-scroller')
     if "title" in feed.feed:
         title = feed.feed.title
