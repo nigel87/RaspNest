@@ -6,7 +6,7 @@
 // (but note, that the led-matrix library this depends on is GPL v2)
 
 #include "led-matrix.h"
-#include "graphics.h" 
+#include "graphics.h"
 
 #include <getopt.h>
 #include <signal.h>
@@ -27,7 +27,7 @@ static void InterruptHandler(int signo) {
 }
 
 static int usage(const char *progname) {
-  fprintf(stderr, "usage: %s [options]\n", progname);
+  fprintf(stderr, "usage: %s [options] <text>\n", progname);
   fprintf(stderr, "Reads text from stdin and displays it. "
           "Empty string: clear screen\n");
   fprintf(stderr, "Options:\n");
@@ -114,6 +114,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (optind >= argc) {
+    fprintf(stderr, "Expected text to display after options\n");
+    return usage(argv[0]);
+  }
+
+  const char* display_text = argv[optind];
+
   if (format_lines.empty()) {
     format_lines.push_back("%H:%M");
   }
@@ -161,40 +168,41 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, InterruptHandler);
   signal(SIGINT, InterruptHandler);
 
- while (!interrupt_received) {
-     offscreen->Fill(bg_color.r, bg_color.g, bg_color.b);
-     localtime_r(&next_time.tv_sec, &tm);
+  while (!interrupt_received) {
+    offscreen->Fill(bg_color.r, bg_color.g, bg_color.b);
+    localtime_r(&next_time.tv_sec, &tm);
 
-     int line_offset = 0;
-     for (const std::string &line : format_lines) {
-         strftime(text_buffer, sizeof(text_buffer), line.c_str(), &tm);
-         if (outline_font) {
-             rgb_matrix::DrawText(offscreen, *outline_font,
-                                 x - 1, y + font.baseline() + line_offset,
-                                 outline_color, NULL, text_buffer,
-                                 letter_spacing - 2);
-         }
-         rgb_matrix::DrawText(offscreen, font,
-                             x, y + font.baseline() + line_offset,
-                             color, NULL, text_buffer,
-                             letter_spacing);
-         line_offset += font.height() + line_spacing;
-     }
+    int line_offset = 0;
+    for (const std::string &line : format_lines) {
+      strftime(text_buffer, sizeof(text_buffer), line.c_str(), &tm);
+      if (outline_font) {
+        rgb_matrix::DrawText(offscreen, *outline_font,
+                             x - 1, y + font.baseline() + line_offset,
+                             outline_color, NULL, text_buffer,
+                             letter_spacing - 2);
+      }
+      rgb_matrix::DrawText(offscreen, font,
+                           x, y + font.baseline() + line_offset,
+                           color, NULL, text_buffer,
+                           letter_spacing);
+      line_offset += font.height() + line_spacing;
+    }
 
-     // Add "Hello World" in the bottom half
-     rgb_matrix::DrawText(offscreen, font,
+    // Add the display text in the bottom half
+    rgb_matrix::DrawText(offscreen, font,
                          x, y + matrix_options.rows / 2 + font.baseline(),
-                         color, NULL, "Hello World",
+                         color, NULL, display_text,
                          letter_spacing);
 
-     // Wait until we're ready to show it.
-     clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_time, NULL);
+    // Wait until we're ready to show it.
+    clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_time, NULL);
 
-     // Atomic swap with double buffer
-     offscreen = matrix->SwapOnVSync(offscreen);
+    // Atomic swap with double buffer
+    offscreen = matrix->SwapOnVSync(offscreen);
 
-     next_time.tv_sec += 1;
- }
+    next_time.tv_sec += 1;
+  }
+
   // Finished. Shut down the RGB matrix.
   delete matrix;
 

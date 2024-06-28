@@ -1,6 +1,6 @@
 CXXFLAGS=-O3 -W -Wall -Wextra -Wno-unused-parameter -D_FILE_OFFSET_BITS=64
-OBJECTS=led-image-viewer.o text-scroller.o
-BINARIES=led-image-viewer text-scroller
+OBJECTS=led-image-viewer.o text-scroller.o clock.o
+BINARIES=led-image-viewer text-scroller clock
 
 OPTIONAL_OBJECTS=video-viewer.o
 OPTIONAL_BINARIES=video-viewer
@@ -44,6 +44,9 @@ text-fixed: text-fixed.o $(RGB_LIBRARY)
 display_time_and_image: display_time_and_image.o $(RGB_LIBRARY)
 	$(CXX) $(CXXFLAGS) display_time_and_image.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS) $(MAGICK_LDFLAGS)
 
+# Add a rule for clock.cpp
+clock: clock.o $(RGB_LIBRARY)
+	$(CXX) $(CXXFLAGS) clock.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS)
 
 %.o : %.cc
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
@@ -57,6 +60,9 @@ led-image-viewer.o : led-image-viewer.cc
 
 display_time_and_image.o : display_time_and_image.cpp
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) $(MAGICK_CXXFLAGS) -c -o $@ $<
+
+clock.o : clock.cc
+	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
 
 clean:
 	rm -f $(OBJECTS) $(BINARIES) $(OPTIONAL_OBJECTS) $(OPTIONAL_BINARIES)
