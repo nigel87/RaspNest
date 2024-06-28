@@ -1,3 +1,4 @@
+ 
 import os
 import time
 import threading
@@ -6,7 +7,10 @@ import feedparser
 
 RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
 
-def run(cpp_binary_folder):
+def run(cpp_binary_folder, stop_event):
+    # Stop any existing scrolling text
+    stop_scrolling_text()
+
     feed = feedparser.parse(RSS_FEED_URL)
     cpp_binary = os.path.join(cpp_binary_folder, 'text-scroller')
     if "title" in feed.feed:
@@ -15,27 +19,24 @@ def run(cpp_binary_folder):
         args = [cpp_binary, '-f', os.path.join(cpp_binary_folder, '../fonts/9x18.bdf'), title,
                '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
                '--led-slowdown-gpio=4']
-        threading.Thread(target=start_scrolling_text, args=(args,)).start()
+        start_scrolling_text(args)
         time.sleep(3)
         stop_scrolling_text()
 
-
     for entry in feed.entries:
+        if stop_event.is_set():
+            break
         if "title" in entry:
             entry_title = entry.title
             # Display the entry title on the LED matrix
             args = [cpp_binary, '-f', os.path.join(cpp_binary_folder, '../fonts/9x18.bdf'), entry_title,
                     '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
                     '--led-slowdown-gpio=4']
-            threading.Thread(target=start_scrolling_text, args=(args,)).start()
+            start_scrolling_text(args)
 
             # Wait for a few seconds to display each entry
-            time.sleep(10)
+            for _ in range(10):
+                if stop_event.is_set():
+                    break
+                time.sleep(1)
             stop_scrolling_text()
-
-
-# if __name__ == '__main__':
-#     cpp_binary_folder = os.path.join(os.path.dirname(__file__), '../c')
-#     while True:
-#         read_ansa_news(cpp_binary_folder)
-#         time.sleep(600)  # Fetch and display news every 10 minutes
