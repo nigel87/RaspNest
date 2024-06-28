@@ -6,7 +6,7 @@
 // (but note, that the led-matrix library this depends on is GPL v2)
 
 #include "led-matrix.h"
-#include "graphics.h"
+#include "graphics.h" 
 
 #include <getopt.h>
 #include <signal.h>
