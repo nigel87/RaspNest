@@ -10,6 +10,7 @@ def stop_scrolling_text():
 
 def start_scrolling_text(args):
     try:
+        stop_scrolling_text()
         subprocess.Popen(args)
     except Exception as e:
         print(f"Error starting scrolling text: {str(e)}")

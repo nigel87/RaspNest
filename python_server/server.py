@@ -2,7 +2,7 @@ import sys
 sys.path.append('../')
 import os
 
-from modes import mode0, mode1, mode2
+from modes import ansa, ballkanweb, lapsi, mode0
 from scrolling_text_controller import  stop_scrolling_text
 
 # Set the working directory to the project folder
@@ -15,9 +15,11 @@ sys.path.append(project_root)
 import cherrypy
 # Configure CherryPy to listen on a specific host (e.g., 192.168.1.143)
 cherrypy.config.update({'server.socket_host': '192.168.1.143'})
-
+TOTAL_NUMBER_OF_MODES = 4
 
 class LEDMatrixDisplayService:
+    def __init__(self):
+        self.current_mode = 0  # Initialize the current mode
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -29,16 +31,27 @@ class LEDMatrixDisplayService:
 
         # Call the function to stop scrolling text
         stop_scrolling_text()
+        
+        # If no mode is specified, cycle to the next mode
+        if mode is None:
+            self.current_mode = (self.current_mode + 1) % TOTAL_NUMBER_OF_MODES  # Cycle through modes 0, 1, 2
+            mode = self.current_mode
+        else:
+            mode = int(mode)  # Ensure mode is an integer
+
+
 
         # Define the folder containing the C++ binary
         cpp_binary_folder = os.path.join(os.path.dirname(__file__), '../c')
 
         if mode == 0:
-            return mode0.run(text, cpp_binary_folder)
+            return ansa.run(cpp_binary_folder)
         elif mode == 1:
-            return mode1.run(text, cpp_binary_folder)
+            return lapsi.run(cpp_binary_folder)
         elif mode == 2:
-            return mode2.run( cpp_binary_folder)
+            return ballkanweb.run( cpp_binary_folder)
+        elif mode == 3:
+            return mode0.run(text, cpp_binary_folder)
         else:
             return {"message": "Invalid mode"}
 

@@ -1,6 +1,6 @@
 import feedparser
 import time
-from utils.display_utils import display_controller
+from python_server.scrolling_text_controller import start_scrolling_text, stop_scrolling_text
 
 
 # RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
