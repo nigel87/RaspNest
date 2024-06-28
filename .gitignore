@@ -1,2 +1,4 @@
 python_server/__pycache__/
 c/*.o
+.DS_Store
+copy_to_rasp.sh
