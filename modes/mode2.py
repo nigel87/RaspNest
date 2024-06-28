@@ -30,7 +30,7 @@ def run(cpp_binary_folder):
             threading.Thread(target=start_scrolling_text, args=(args,)).start()
 
             # Wait for a few seconds to display each entry
-            time.sleep(3)
+            time.sleep(10)
             stop_scrolling_text()
 
 

@@ -1,10 +1,11 @@
 import subprocess
 import threading
 import os
-from python_server.scrolling_text_controller import start_scrolling_text
+from python_server.scrolling_text_controller import start_scrolling_text, stop_scrolling_text
 
 
 def run(text, cpp_binary_folder):
+    stop_scrolling_text()
     print("text :" + text)
     print("text :" + cpp_binary_folder)
 
