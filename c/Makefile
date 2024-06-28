@@ -40,6 +40,11 @@ video-viewer: video-viewer.o $(RGB_LIBRARY)
 text-fixed: text-fixed.o $(RGB_LIBRARY)
 	$(CXX) $(CXXFLAGS) text-fixed.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS)
 
+# Add a rule for display_time_and_image.cpp
+display_time_and_image: display_time_and_image.o $(RGB_LIBRARY)
+	$(CXX) $(CXXFLAGS) display_time_and_image.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS) $(MAGICK_LDFLAGS)
+
+
 %.o : %.cc
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
 
@@ -48,6 +53,9 @@ text-fixed.o: text-fixed.cpp
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
 
 led-image-viewer.o : led-image-viewer.cc
+	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) $(MAGICK_CXXFLAGS) -c -o $@ $<
+
+display_time_and_image.o : display_time_and_image.cpp
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) $(MAGICK_CXXFLAGS) -c -o $@ $<
 
 clean:
