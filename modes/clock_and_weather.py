@@ -8,6 +8,12 @@ API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
 CITY = 'Rome,IT'
 ZIP_CODE = "IT"
 
+def stop_clock():
+    try:
+        subprocess.run(["pkill", "-2", "clock"])
+    except subprocess.CalledProcessError:
+        pass  # Handle any errors if needed
+
 def get_weather(city, zip_code):
     base_url = "https://api.openweathermap.org/data/2.5/weather"
     params = {
