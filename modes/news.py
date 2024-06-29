@@ -1,4 +1,3 @@
- 
 import os
 import time
 import threading
@@ -6,6 +5,16 @@ from python_server.scrolling_text_controller import start_scrolling_text, stop_s
 import feedparser
 
 
+BASE_DISPLAY_TIME = 2
+# Fattore di scala per calcolare il tempo di visualizzazione aggiuntivo
+SCALE_FACTOR = 0.135
+
+def calculate_display_time(text):
+    # Calcola il tempo di visualizzazione in modo proporzionale alla lunghezza del testo
+    text_length = len(text)
+    # Tempo di visualizzazione proporzionale alla lunghezza del testo
+    display_time = BASE_DISPLAY_TIME + (text_length * SCALE_FACTOR)
+    return display_time
 
 def run(rss_feed_url, cpp_binary_folder, stop_event):
     # Stop any existing scrolling text
@@ -20,7 +29,7 @@ def run(rss_feed_url, cpp_binary_folder, stop_event):
                '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
                '--led-slowdown-gpio=4']
         start_scrolling_text(args)
-        time.sleep(3)
+        time.sleep(calculate_display_time(title))
         stop_scrolling_text()
 
     for entry in feed.entries:
@@ -34,9 +43,7 @@ def run(rss_feed_url, cpp_binary_folder, stop_event):
                     '--led-slowdown-gpio=4']
             start_scrolling_text(args)
 
-            # Wait for a few seconds to display each entry
-            for _ in range(10):
-                if stop_event.is_set():
-                    break
-                time.sleep(1)
+            # Calcola il tempo di visualizzazione basato sulla lunghezza del titolo
+            display_time = calculate_display_time(entry_title)
+            time.sleep(display_time)
             stop_scrolling_text()
