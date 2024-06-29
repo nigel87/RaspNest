@@ -6,22 +6,23 @@ import feedparser
 
 BASE_DISPLAY_TIME = 2
 SCALE_FACTOR = 0.135
+CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../c')
 
 def calculate_display_time(text):
     text_length = len(text)
     display_time = int(BASE_DISPLAY_TIME + (text_length * SCALE_FACTOR))
     return display_time
 
-def run(rss_feed_url, cpp_binary_folder, stop_event):
+def run(rss_feed_url, stop_event):
     stop_scrolling_text()
 
     feed = feedparser.parse(rss_feed_url)
-    cpp_binary = os.path.join(cpp_binary_folder, 'text-scroller')
+    cpp_binary = os.path.join(CPP_BINARY_FOLDER, 'text-scroller')
     
     if "title" in feed.feed:
         title = feed.feed.title
         # Display the title on the LED matrix
-        args = [cpp_binary, '-f', os.path.join(cpp_binary_folder, '../fonts/9x18.bdf'), title,
+        args = [cpp_binary, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'), title,
                '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
                '--led-slowdown-gpio=4']
         start_scrolling_text(args)
@@ -34,7 +35,7 @@ def run(rss_feed_url, cpp_binary_folder, stop_event):
         if "title" in entry:
             entry_title = entry.title
             # Display the entry title on the LED matrix
-            args = [cpp_binary, '-f', os.path.join(cpp_binary_folder, '../fonts/9x18.bdf'), entry_title,
+            args = [cpp_binary, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'), entry_title,
                     '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
                     '--led-slowdown-gpio=4']
             start_scrolling_text(args)

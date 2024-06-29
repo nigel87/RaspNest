@@ -18,7 +18,7 @@ sys.path.append(project_root)
 
 # Configure CherryPy to listen on a specific host (e.g., 192.168.1.143)
 cherrypy.config.update({'server.socket_host': '192.168.1.143'})
-TOTAL_NUMBER_OF_MODES = 5  # Increment the total number of modes
+TOTAL_NUMBER_OF_MODES = 4  # Increment the total number of modes
 
 class LEDMatrixDisplayService:
     def __init__(self):
@@ -51,20 +51,16 @@ class LEDMatrixDisplayService:
         else:
             mode = int(mode)  # Ensure mode is an integer
 
-        # Define the folder containing the C++ binary
-        cpp_binary_folder = os.path.join(os.path.dirname(__file__), '../c')
-
+    
         # Run the corresponding mode in a new thread
         if mode == 0:
-            self.current_thread = threading.Thread(target=news.run, args=(ANSA_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(ANSA_RSS_FEED_URL, self.stop_event))
         elif mode == 1:
-            self.current_thread = threading.Thread(target=news.run, args=(BALLKANWEB_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(BALLKANWEB_RSS_FEED_URL, self.stop_event))
         elif mode == 2:
-            self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL, self.stop_event))
         elif mode == 3:
-            self.current_thread = threading.Thread(target=mode0.run, args=(text, cpp_binary_folder))
-        elif mode == 4:
-            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(self.stop_event,)
         else:
             return {"message": "Invalid mode"}
 
