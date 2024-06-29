@@ -4,7 +4,7 @@ import os
 import cherrypy
 import threading
 
-from modes import news, mode0
+from modes import news, mode0, time_and_weather
 from scrolling_text_controller import stop_scrolling_text
 from constants import *
 # Set the working directory to the project folder
@@ -16,7 +16,7 @@ sys.path.append(project_root)
 
 # Configure CherryPy to listen on a specific host (e.g., 192.168.1.143)
 cherrypy.config.update({'server.socket_host': '192.168.1.143'})
-TOTAL_NUMBER_OF_MODES = 4
+TOTAL_NUMBER_OF_MODES = 5
 
 class LEDMatrixDisplayService:
     def __init__(self):
@@ -43,6 +43,8 @@ class LEDMatrixDisplayService:
             self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
         elif mode == 3:
             self.current_thread = threading.Thread(target=mode0.run, args=(text, cpp_binary_folder))
+        elif mode == 4:
+            self.current_thread = threading.Thread(target=time_and_weather.run, args=(cpp_binary_folder, self.stop_event)) 
         else:
             raise ValueError("Invalid mode")
 
