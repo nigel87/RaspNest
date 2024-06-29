@@ -4,9 +4,11 @@ import os
 import cherrypy
 import threading
 
-from modes import news, mode0, time_and_weather
+from modes import clock_and_weather, news, mode0
 from scrolling_text_controller import stop_scrolling_text
 from constants import *
+from modes.clock_and_weather import stop_clock
+
 # Set the working directory to the project folder
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -54,15 +56,15 @@ class LEDMatrixDisplayService:
 
         # Run the corresponding mode in a new thread
         if mode == 0:
-            self.current_thread = threading.Thread(target=ansa.run, args=(cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(ANSA_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
         elif mode == 1:
-            self.current_thread = threading.Thread(target=lapsi.run, args=(cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(BALLKANWEB_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
         elif mode == 2:
-            self.current_thread = threading.Thread(target=ballkanweb.run, args=(cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
         elif mode == 3:
             self.current_thread = threading.Thread(target=mode0.run, args=(text, cpp_binary_folder))
         elif mode == 4:
-            self.current_thread = threading.Thread(target=time_and_weather_mode.run, args=(cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(cpp_binary_folder, self.stop_event))
         else:
             return {"message": "Invalid mode"}
 
