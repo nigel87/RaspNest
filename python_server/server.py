@@ -60,7 +60,7 @@ class LEDMatrixDisplayService:
         elif mode == 2:
             self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL, self.stop_event))
         elif mode == 3:
-            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(self.stop_event,)
+            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(self.stop_event,))
         else:
             return {"message": "Invalid mode"}
 
