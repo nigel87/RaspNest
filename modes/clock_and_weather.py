@@ -7,6 +7,7 @@ import threading
 API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
 CITY = 'Rome,IT'
 ZIP_CODE = "IT"
+TEMP_FILE = "/tmp/current_temperature.txt"
 
 def stop_clock():
     try:
@@ -32,32 +33,50 @@ def get_weather(city, zip_code):
         print("Failed to retrieve weather data")
         return "N/A"
 
-def run(cpp_binary_folder, stop_event):
+def write_temperature_to_file(temperature):
+    with open(TEMP_FILE, "w") as file:
+        file.write(temperature)
+
+def run_clock(cpp_binary_folder, stop_event):
+    cmd = [
+        "sudo", "./clock", "-f", "../fonts/9x18.bdf", TEMP_FILE,
+        "--led-no-hardware-pulse", "--led-cols=64", "--led-gpio-mapping=adafruit-hat", "--led-slowdown-gpio=4", "-s=1", "-y=16"
+    ]
+
+    current_dir = os.getcwd()
+    os.chdir(cpp_binary_folder)
+
+    process = subprocess.Popen(cmd)
+
+    try:
+        while not stop_event.is_set():
+            time.sleep(1)
+    finally:
+        process.terminate()
+        process.wait()
+        os.chdir(current_dir)
+
+def update_temperature_periodically(stop_event):
     while not stop_event.is_set():
         temperature = get_weather(CITY, ZIP_CODE)
-        display_text = f"{temperature}"
+        write_temperature_to_file(temperature)
+        for _ in range(600):  # Check stop_event every second for 10 minutes
+            if stop_event.is_set():
+                break
+            time.sleep(1)
 
-        # Define the command to run the clock binary
-        cmd = [
-            "sudo", "./clock", "-f", "../fonts/9x18.bdf", display_text,
-            "--led-no-hardware-pulse", "--led-cols=64", "--led-gpio-mapping=adafruit-hat", "--led-slowdown-gpio=4", "-s=1", "-y=16"
-        ]
+def run(cpp_binary_folder, stop_event):
+    # Create and start the thread to update temperature
+    temperature_thread = threading.Thread(target=update_temperature_periodically, args=(stop_event,))
+    temperature_thread.start()
 
-        # Change to the directory containing the binary
-        current_dir = os.getcwd()
-        os.chdir(cpp_binary_folder)
-
-        process = subprocess.Popen(cmd)
-
-        try:
-            while not stop_event.is_set():
-                time.sleep(1)
-        finally:
-            process.terminate()
-            process.wait()
-            os.chdir(current_dir)
-
-        time.sleep(600)  # Fetch weather every 10 minutes
+    try:
+        # Start the clock process
+        run_clock(cpp_binary_folder, stop_event)
+    except KeyboardInterrupt:
+        stop_event.set()
+        temperature_thread.join()
+        stop_clock()
 
 if __name__ == "__main__":
     stop_event = threading.Event()
