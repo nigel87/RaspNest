@@ -56,11 +56,11 @@ class LEDMatrixDisplayService:
 
         # Run the corresponding mode in a new thread
         if mode == 0:
-            self.current_thread = threading.Thread(target=news.run, args=(ANSA_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(ANSA_RSS_FEED_URL, self.stop_event))
         elif mode == 1:
-            self.current_thread = threading.Thread(target=news.run, args=(BALLKANWEB_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(BALLKANWEB_RSS_FEED_URL, self.stop_event))
         elif mode == 2:
-            self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL,cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL, self.stop_event))
         elif mode == 3:
             self.current_thread = threading.Thread(target=mode0.run, args=(text, cpp_binary_folder))
         elif mode == 4:
