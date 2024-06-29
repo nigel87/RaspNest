@@ -1,12 +1,11 @@
+import subprocess
 import os
 import requests
-import subprocess
-import time
 import threading
+import time
 
 API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
 CITY = 'Rome,IT'
-ZIP_CODE = "IT"
 
 def get_weather(city, zip_code):
     base_url = "https://api.openweathermap.org/data/2.5/weather"
@@ -27,31 +26,33 @@ def get_weather(city, zip_code):
         return "N/A"
 
 def run(cpp_binary_folder, stop_event):
-    while not stop_event.is_set():
-        temperature = get_weather(CITY, ZIP_CODE)
-        display_text = f"{temperature}"
+    # Fetch the current weather
+    temperature = get_weather("Rome", "IT")
 
-        # Define the command to run the clock binary
-        cmd = [
-            "sudo", "./clock", "-f", "../fonts/9x18.bdf", display_text,
-            "--led-no-hardware-pulse", "--led-cols=64", "--led-gpio-mapping=adafruit-hat", "--led-slowdown-gpio=4", "-s=1", "-y=16"
-        ]
+    # Command to run the clock binary with weather information
+    command = [
+        os.path.join(cpp_binary_folder, "clock"),
+        "-f", "../fonts/9x18.bdf",
+        temperature,
+        "--led-no-hardware-pulse",
+        "--led-cols=64",
+        "--led-gpio-mapping=adafruit-hat",
+        "--led-slowdown-gpio=4",
+        "-s=1",
+        "-y=16"
+    ]
 
-        # Change to the directory containing the binary
-        current_dir = os.getcwd()
-        os.chdir(cpp_binary_folder)
+    process = subprocess.Popen(command)
 
-        try:
-            # Execute the command
-            subprocess.run(cmd)
+    try:
+        while not stop_event.is_set():
+            time.sleep(0.1)
+    finally:
+        process.terminate()
+        process.wait()
 
-        finally:
-            # Change back to the original directory
-            os.chdir(current_dir)
-
-        time.sleep(600)  # Fetch weather every 10 minutes
-
-if __name__ == "__main__":
-    stop_event = threading.Event()
-    cpp_binary_folder = os.path.join(os.path.dirname(__file__), '../c')
-    run(cpp_binary_folder, stop_event)
+def stop_clock():
+    try:
+        subprocess.run(["pkill", "-2", "clock"])
+    except subprocess.CalledProcessError:
+        pass  # Handle any errors if needed
