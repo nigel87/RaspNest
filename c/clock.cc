@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 using namespace rgb_matrix;
 
@@ -59,6 +60,16 @@ static bool FullSaturation(const Color &c) {
     && (c.b == 0 || c.b == 255);
 }
 
+std::string readTemperatureFromFile(const char *filename) {
+  std::ifstream file(filename);
+  if (!file) {
+    return "N/A";
+  }
+  std::string temp;
+  std::getline(file, temp);
+  return temp;
+}
+
 int main(int argc, char *argv[]) {
   RGBMatrix::Options matrix_options;
   rgb_matrix::RuntimeOptions runtime_opt;
@@ -80,6 +91,7 @@ int main(int argc, char *argv[]) {
   int y_orig = 0;
   int letter_spacing = 0;
   int line_spacing = 0;
+  const char *temp_file = "/tmp/current_temperature.txt";  // Percorso del file della temperatura
 
   int opt;
   while ((opt = getopt(argc, argv, "x:y:f:C:B:O:s:S:d:")) != -1) {
@@ -113,13 +125,6 @@ int main(int argc, char *argv[]) {
       return usage(argv[0]);
     }
   }
-
-  if (optind >= argc) {
-    fprintf(stderr, "Expected text to display after options\n");
-    return usage(argv[0]);
-  }
-
-  const char* display_text = argv[optind];
 
   if (format_lines.empty()) {
     format_lines.push_back("%H:%M");
@@ -188,10 +193,11 @@ int main(int argc, char *argv[]) {
       line_offset += font.height() + line_spacing;
     }
 
-    // Add the display text in the bottom half
+    // Legge la temperatura dal file e aggiungi il testo di visualizzazione nella parte inferiore
+    std::string temperature = readTemperatureFromFile(temp_file);
     rgb_matrix::DrawText(offscreen, font,
                          x, y + matrix_options.rows / 2 + font.baseline(),
-                         color, NULL, display_text,
+                         color, NULL, temperature.c_str(),
                          letter_spacing);
 
     // Wait until we're ready to show it.
