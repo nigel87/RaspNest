@@ -21,10 +21,12 @@ def run(rss_feed_url, stop_event):
     
     if "title" in feed.feed:
         title = feed.feed.title
+        text_color = "255,0,0"
         # Display the title on the LED matrix
         args = [cpp_binary, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'), title,
                '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
-               '--led-slowdown-gpio=4']
+               '--led-slowdown-gpio=4',
+               '-C', text_color]
         start_scrolling_text(args)
         time.sleep(calculate_display_time(title))
         stop_scrolling_text()
