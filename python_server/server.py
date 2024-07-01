@@ -6,7 +6,7 @@ import threading
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
 
-from python_server.modes import clock_and_weather, news, mode0, weather_detail
+from python_server.modes import clock_and_weather, news, mode0, weather_detail, football
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -23,6 +23,7 @@ MODES = {
     2: {"name": "News (Lapsi)", "run_function": news.run, "args": (LAPSI_RSS_FEED_URL,)},
     3: {"name": "Clock and Weather", "run_function": clock_and_weather.run, "args": ()},
     4: {"name": "Weather Detail", "run_function": weather_detail.run, "args": ()},
+    5: {"name": "Football", "run_function": football.run, "args": ()},
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)
@@ -67,7 +68,7 @@ class LEDMatrixDisplayService:
             mode = self.current_mode
         else:
             mode = int(mode)  
-            
+
         # Run the corresponding mode using the dictionary
         try:
             mode_info = MODES[mode]
