@@ -6,7 +6,7 @@ import threading
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
 
-from modes import clock_and_weather, news, mode0
+from modes import clock_and_weather, news, mode0, weather_detail
 from scrolling_text_controller import stop_scrolling_text
 from constants import *
 from modes.clock_and_weather import stop_clock
@@ -67,6 +67,9 @@ class LEDMatrixDisplayService:
             self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL, self.stop_event))
         elif mode == 3:
             self.current_thread = threading.Thread(target=clock_and_weather.run, args=(self.stop_event,))
+        elif mode == 4:
+            self.current_thread = threading.Thread(target=weather_detail.run, args=(self.stop_event,))
+            
         else:
             return {"message": "Invalid mode"}
 
