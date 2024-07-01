@@ -3,33 +3,19 @@ import requests
 import subprocess
 import time
 import threading
-from python_server.scrolling_text_controller import start_scrolling_text, stop_scrolling_text, display_on_matrix
+from python_server.scrolling_text_controller import display_on_matrix, stop_scrolling_text
 from python_server.constants import *
+from python_server.shared.weather_service import get_weather_rome
 
 
 
-def get_weather(city, zip_code):
-    base_url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": f"{city},{zip_code}",
-        "appid": API_KEY,
-        "units": "metric"  # Use Celsius for temperature
-    }
 
-    response = requests.get(base_url, params=params)
-
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    else:
-        print("Failed to retrieve weather data")
-        return "N/A"
 
 
 
 def run(stop_event):
     stop_scrolling_text()
-    weather = get_weather(CITY, ZIP_CODE)
+    weather = get_weather_rome()
     if weather == "N/A":
         return
 

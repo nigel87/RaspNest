@@ -4,11 +4,9 @@ import subprocess
 import time
 import threading
 
-API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
-CITY = 'Rome,IT'
-ZIP_CODE = "IT"
-TEMP_FILE = "/tmp/current_temperature.txt"
-CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../c')
+from python_server.constants import *
+from python_server.shared.weather_service import get_weather_rome
+
 
 
 
@@ -18,23 +16,7 @@ def stop_clock():
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 
-def get_weather(city, zip_code):
-    base_url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": f"{city},{zip_code}",
-        "appid": API_KEY,
-        "units": "metric"  # Use Celsius for temperature
-    }
 
-    response = requests.get(base_url, params=params)
-
-    if response.status_code == 200:
-        data = response.json()
-        temperature = data["main"]["temp"]
-        return f"{temperature}°C"
-    else:
-        print("Failed to retrieve weather data")
-        return "N/A"
 
 def write_temperature_to_file(temperature):
     with open(TEMP_FILE, "w") as file:
@@ -61,7 +43,7 @@ def run_clock(stop_event):
 
 def update_temperature_periodically(stop_event):
     while not stop_event.is_set():
-        temperature = get_weather(CITY, ZIP_CODE)
+        temperature = str(get_weather_rome()["main"]["temp"])
         write_temperature_to_file(temperature)
         for _ in range(600):  # Check stop_event every second for 10 minutes
             if stop_event.is_set():
