@@ -8,7 +8,7 @@ sys.path.append('../')  # Adjust the path as needed based on your project struct
 
 from modes import clock_and_weather, news, mode0, weather_detail
 from scrolling_text_controller import stop_scrolling_text
-from python_server.shared.constants import *
+from constants import *
 from modes.clock_and_weather import stop_clock
 
 # Set the working directory to the project folder
