@@ -11,6 +11,7 @@ TEMP_FILE = "/tmp/current_temperature.txt"
 CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../c')
 
 
+
 def stop_clock():
     try:
         subprocess.run(["pkill", "-2", "clock"])
@@ -73,7 +74,6 @@ def run(stop_event):
     temperature_thread.start()
 
     try:
-        # Start the clock process
         run_clock(stop_event)
     except KeyboardInterrupt:
         stop_event.set()
