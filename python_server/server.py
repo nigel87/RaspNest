@@ -1,24 +1,22 @@
 import sys
-sys.path.append('../')
 import os
 import cherrypy
 import threading
 
-from modes import clock_and_weather, news, mode0
+sys.path.append('../')  # Adjust the path as needed based on your project structure
+
+
+from modes import clock_and_weather, news, mode0, weather_detail
 from scrolling_text_controller import stop_scrolling_text
-from constants import *
+from python_server.shared.constants import *
 from modes.clock_and_weather import stop_clock
 
 # Set the working directory to the project folder
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-# Add the project root directory to the Python path
-project_root = os.path.dirname(__file__)
-sys.path.append(project_root)
-
 # Configure CherryPy to listen on a specific host (e.g., 192.168.1.143)
 cherrypy.config.update({'server.socket_host': '192.168.1.143'})
-TOTAL_NUMBER_OF_MODES = 5  # Increment the total number of modes
+TOTAL_NUMBER_OF_MODES = 4  # Increment the total number of modes
 
 class LEDMatrixDisplayService:
     def __init__(self):
@@ -30,6 +28,15 @@ class LEDMatrixDisplayService:
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def display_message(self):
+        if cherrypy.request.method == 'OPTIONS':
+            # Respond to preflight request
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            cherrypy.response.headers['Access-Control-Max-Age'] = '3600'  # Cache preflight response for 1 hour
+            return ''
+        
+        # Handle POST request
         data = cherrypy.request.json
         mode = data.get('mode', None)  # No default mode here to allow cycling
         text = data.get('text', 'Hello, World!')  # Default text
@@ -51,9 +58,6 @@ class LEDMatrixDisplayService:
         else:
             mode = int(mode)  # Ensure mode is an integer
 
-        # Define the folder containing the C++ binary
-        cpp_binary_folder = os.path.join(os.path.dirname(__file__), '../c')
-
         # Run the corresponding mode in a new thread
         if mode == 0:
             self.current_thread = threading.Thread(target=news.run, args=(ANSA_RSS_FEED_URL, self.stop_event))
@@ -62,14 +66,28 @@ class LEDMatrixDisplayService:
         elif mode == 2:
             self.current_thread = threading.Thread(target=news.run, args=(LAPSI_RSS_FEED_URL, self.stop_event))
         elif mode == 3:
-            self.current_thread = threading.Thread(target=mode0.run, args=(text, cpp_binary_folder))
+            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(self.stop_event,))
         elif mode == 4:
-            self.current_thread = threading.Thread(target=clock_and_weather.run, args=(cpp_binary_folder, self.stop_event))
+            self.current_thread = threading.Thread(target=weather_detail.run, args=(self.stop_event,))
+            
         else:
             return {"message": "Invalid mode"}
 
         self.current_thread.start()
         return {"message": f"Mode {mode} started"}
 
+# Enable CORS globally using a custom tool
+def enable_cors():
+    cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+    cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+
+# Register the CORS tool
+cherrypy.tools.enable_cors = cherrypy.Tool('before_handler', enable_cors)
+
 if __name__ == '__main__':
-    cherrypy.quickstart(LEDMatrixDisplayService())
+    cherrypy.quickstart(LEDMatrixDisplayService(), '/', {
+        '/': {
+            'tools.enable_cors.on': True
+        }
+    })
