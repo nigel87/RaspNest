@@ -42,25 +42,25 @@ def run(stop_event):
     rain3h = 'NO DATA' #weather ["rain"]["rain.3h"]
 
     displayTitle = 'Temperature: ' + str(temperature) 
-    display_on_matrix(displayTitle, GREEN)
+    display_on_matrix(displayTitle, GREEN,stop_event)
 
     displayTitle = 'Temperatura percepita: ' + str(feels_like) 
-    display_on_matrix(displayTitle, YELLOW)
+    display_on_matrix(displayTitle, YELLOW,stop_event)
 
     displayTitle = 'Temperature MIN ' + str(temp_min) 
-    display_on_matrix(displayTitle, GREEN)
+    display_on_matrix(displayTitle, GREEN,stop_event)
 
     displayTitle = 'Temperature MAX ' + str(temp_max) 
-    display_on_matrix(displayTitle, RED)
+    display_on_matrix(displayTitle, RED,stop_event)
 
     displayTitle = 'Umidità ' + str(humidity) 
-    display_on_matrix(displayTitle, ORANGE)
+    display_on_matrix(displayTitle, ORANGE,stop_event)
 
     #displayTitle = 'Rain in 1h' + str(rain1h) 
-    #display_on_matrix(displayTitle, BLUE)
+    #display_on_matrix(displayTitle, BLUE,stop_event)
 
     #displayTitle = 'Rain in 3h' + str(rain3h) 
-    #display_on_matrix(displayTitle, PURPLE)
+    #display_on_matrix(displayTitle, PURPLE,stop_event)
 
     stop_scrolling_text()
 
