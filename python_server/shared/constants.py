@@ -8,7 +8,7 @@ API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
 CITY = 'Rome,IT'
 ZIP_CODE = "IT"
 TEMP_FILE = "/tmp/current_temperature.txt"
-CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../c')
+CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../../c')
 CPP_BINARY_PATH = os.path.join(CPP_BINARY_FOLDER, 'text-scroller')
 
 

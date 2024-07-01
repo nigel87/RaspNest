@@ -1,6 +1,6 @@
 
 import requests
-from python_server.constants import API_KEY, CITY, ZIP_CODE
+from python_server.shared.constants import API_KEY, CITY, ZIP_CODE
 
 
 def get_weather(city, zip_code):

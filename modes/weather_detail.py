@@ -1,7 +1,7 @@
 import os
-from python_server.scrolling_text_controller import display_on_matrix, stop_scrolling_text
-from python_server.constants import *
-from python_server.shared.weather_service import get_weather_rome
+from python_server.shared.controller.matrix_controller import display_on_matrix, stop_scrolling_text
+from python_server.shared.constants import *
+from python_server.shared.service.weather_service import get_weather_rome
 
 
 def run(stop_event):

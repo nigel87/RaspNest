@@ -1,7 +1,7 @@
 import os
 import time
 import threading
-from python_server.scrolling_text_controller import start_scrolling_text, stop_scrolling_text
+from python_server.shared.controller.matrix_controller import start_scrolling_text, stop_scrolling_text
 import feedparser
 
 RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"

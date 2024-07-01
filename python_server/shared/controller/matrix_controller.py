@@ -1,7 +1,7 @@
 import subprocess
 import time
 import os
-from python_server.constants import CPP_BINARY_PATH, CPP_BINARY_FOLDER, TEMP_FILE
+from python_server.shared.constants import CPP_BINARY_PATH, CPP_BINARY_FOLDER, TEMP_FILE
 
 BASE_DISPLAY_TIME = 1.9
 SCALE_FACTOR = 0.135

@@ -4,9 +4,9 @@ import subprocess
 import time
 import threading
 
-from python_server.constants import *
-from python_server.scrolling_text_controller import run_clock_on_matrix
-from python_server.shared.weather_service import get_weather_rome
+from python_server.shared.constants import *
+from python_server.shared.controller.matrix_controller import run_clock_on_matrix
+from python_server.shared.service.weather_service import get_weather_rome
 
 
 def run(stop_event):
