@@ -1,6 +1,3 @@
-import os
-import time
-import threading
 from python_server.scrolling_text_controller import stop_scrolling_text, display_on_matrix
 import feedparser
 from python_server.constants import RED, GOLD
