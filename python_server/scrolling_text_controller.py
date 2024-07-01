@@ -1,15 +1,31 @@
 import subprocess
 import time
 import os
-from python_server.constants import CPP_BINARY_PATH, CPP_BINARY_FOLDER
+from python_server.constants import CPP_BINARY_PATH, CPP_BINARY_FOLDER, TEMP_FILE
 
 BASE_DISPLAY_TIME = 1.9
 SCALE_FACTOR = 0.135
 
-def calculate_display_time(text):
-    text_length = len(text)
-    display_time = int(BASE_DISPLAY_TIME + (text_length * SCALE_FACTOR))
-    return display_time
+def run_clock_on_matrix(stop_event):
+    cmd = [
+        "sudo", "./clock", "-f", "../fonts/9x18.bdf", TEMP_FILE,
+        "--led-no-hardware-pulse", "--led-cols=64", "--led-gpio-mapping=adafruit-hat", "--led-slowdown-gpio=4", "-s=1", "-y=16"
+    ]
+
+    current_dir = os.getcwd()
+    os.chdir(CPP_BINARY_FOLDER)
+
+    process = subprocess.Popen(cmd)
+
+    try:
+        while not stop_event.is_set():
+            time.sleep(1)
+    finally:
+        process.terminate()
+        process.wait()
+        os.chdir(current_dir)
+        
+
 
 def display_on_matrix(title, colour, stop_event):
     if not os.path.exists(CPP_BINARY_PATH):
@@ -51,3 +67,9 @@ def start_scrolling_text(args):
         subprocess.Popen(args)
     except Exception as e:
         print(f"Error starting scrolling text: {str(e)}")
+
+
+def calculate_display_time(text):
+    text_length = len(text)
+    display_time = int(BASE_DISPLAY_TIME + (text_length * SCALE_FACTOR))
+    return display_time
