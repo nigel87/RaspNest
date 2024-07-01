@@ -26,7 +26,7 @@ MODES = {
     5: {"name": "Football", "run_function": football.run, "args": ()},
 }
 
-TOTAL_NUMBER_OF_MODES = len(MODES)
+TOTAL_NUMBER_OF_MODES = len(MODES)  
 
 
 class LEDMatrixDisplayService:

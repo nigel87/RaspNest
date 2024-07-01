@@ -11,7 +11,7 @@ def run(stop_event):
 
 def display_live_scores(stop_event):
     matches = get_live_scores()
-    display_on_matrix("Live Scores:\n", GREEN,stop_event,stop_event)
+    display_on_matrix("Live Scores:\n", GREEN,stop_event)
     if matches['count'] > 0:
         for match in matches['matches']:
             home_team = match['homeTeam']['name']
