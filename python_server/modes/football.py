@@ -4,7 +4,7 @@ from python_server.shared.constants import GREEN, RED, GOLD, WHITE
 from python_server.shared.service.football_service import *
 def run(stop_event):
     stop_scrolling_text()
-    
+    display_live_scores(stop_event)
     display_today_matches(stop_event)
     #stop_scrolling_text()
 
@@ -35,7 +35,7 @@ def display_today_matches(stop_event):
             match_time = match['utcDate']
             display_on_matrix(f"{home_team} vs {away_team} ({competition}) at {match_time}", WHITE,stop_event)
     else:
-        display("No matches scheduled for today.", RED,stop_event)
+        display_today_matches("No matches scheduled for today.", RED,stop_event)
 
 
 def display_league_standings(league_code):
