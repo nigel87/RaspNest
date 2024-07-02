@@ -1,17 +1,17 @@
 
 import requests
-from python_server.shared.constants import API_KEY, CITY, ZIP_CODE
+from python_server.shared.constants import  CITY, WEATHER_BASE_URL, ZIP_CODE
+from python_server.shared.service.secret import WEATHER_API_KEY
 
 
 def get_weather(city, zip_code):
-    base_url = "https://api.openweathermap.org/data/2.5/weather"
     params = {
         "q": f"{city},{zip_code}",
-        "appid": API_KEY,
+        "appid": WEATHER_API_KEY,
         "units": "metric"  # Use Celsius for temperature
     }
 
-    response = requests.get(base_url, params=params)
+    response = requests.get(WEATHER_BASE_URL, params=params)
 
     if response.status_code == 200:
         data = response.json()

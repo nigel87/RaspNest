@@ -4,13 +4,15 @@ ANSA_RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
 BALLKANWEB_RSS_FEED_URL = "https://www.balkanweb.com/feed/"
 LAPSI_RSS_FEED_URL = "https://lapsi.al/feed/"
 
-API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
+
 CITY = 'Rome,IT'
 ZIP_CODE = "IT"
 TEMP_FILE = "/tmp/current_temperature.txt"
 CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../../c')
 CPP_BINARY_PATH = os.path.join(CPP_BINARY_FOLDER, 'text-scroller')
 
+FOOTBALL_BASE_URL = 'https://api.football-data.org/v2/'
+WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 # Define the dictionary mapping color names to their RGB values
 colors = {

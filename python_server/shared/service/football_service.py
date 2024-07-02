@@ -1,7 +1,8 @@
 import requests
 from datetime import datetime
 
-from python_server.shared.service.secret import FOOTBALL_API_TOKEN, FOOTBALL_BASE_URL
+from python_server.shared.constants import FOOTBALL_BASE_URL
+from python_server.shared.service.secret import FOOTBALL_API_TOKEN
 
 
 
