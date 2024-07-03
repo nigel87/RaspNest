@@ -38,7 +38,7 @@ def write_temperature_to_file(temperature):
 
 def update_temperature_periodically(stop_event):
     while not stop_event.is_set():
-        temperature = str(get_weather_rome()["main"]["temp"])
+        temperature = str(get_weather_rome()["main"]["temp"]) + '°C'
         write_temperature_to_file(temperature)
         for _ in range(600):  # Check stop_event every second for 10 minutes
             if stop_event.is_set():

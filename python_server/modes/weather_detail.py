@@ -18,19 +18,19 @@ def run(stop_event):
     rain1h = 'NO DATA' #weather ["rain"]["rain.1h"]
     rain3h = 'NO DATA' #weather ["rain"]["rain.3h"]
 
-    displayTitle = 'Temperature: ' + str(temperature) 
+    displayTitle = 'Temperature: ' + str(temperature) + '°C'
     display_on_matrix(displayTitle, GREEN,stop_event)
 
-    displayTitle = 'Temperatura percepita: ' + str(feels_like) 
+    displayTitle = 'Temperatura percepita: ' + str(feels_like)  + '°C'
     display_on_matrix(displayTitle, YELLOW,stop_event)
 
-    displayTitle = 'Temperature MIN ' + str(temp_min) 
+    displayTitle = 'Temperature MIN ' + str(temp_min)  + '°C'
     display_on_matrix(displayTitle, GREEN,stop_event)
 
-    displayTitle = 'Temperature MAX ' + str(temp_max) 
+    displayTitle = 'Temperature MAX ' + str(temp_max)  + '°C'
     display_on_matrix(displayTitle, RED,stop_event)
 
-    displayTitle = 'Umidità ' + str(humidity) 
+    displayTitle = 'Umidità ' + str(humidity)  + '%'
     display_on_matrix(displayTitle, ORANGE,stop_event)
 
     #displayTitle = 'Rain in 1h' + str(rain1h) 
