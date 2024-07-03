@@ -13,6 +13,8 @@ CPP_BINARY_PATH = os.path.join(CPP_BINARY_FOLDER, 'text-scroller')
 
 FOOTBALL_BASE_URL = 'https://api.football-data.org/v2/'
 WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+STOCK_MARKET_BASE_URL = "https://www.alphavantage.co/query"
+
 
 # Define the dictionary mapping color names to their RGB values
 colors = {
