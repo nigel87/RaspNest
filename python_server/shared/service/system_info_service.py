@@ -1,5 +1,40 @@
 import subprocess
 import time
+
+from python_server.shared.constants import BLUE, GREEN, GREY, ORANGE, RED, YELLOW
+
+# Define thresholds for each metric
+thresholds = {
+    'cpu_usage_percent': {'very_high': 90, 'high': 75, 'medium': 50, 'low': 25, 'very_low': 0},
+    'memory_percent': {'very_high': 90, 'high': 75, 'medium': 50, 'low': 25, 'very_low': 0},
+    'disk_percent': {'very_high': 90, 'high': 75, 'medium': 50, 'low': 25, 'very_low': 0},
+    'cpu_temperature': {'very_high': 80, 'high': 70, 'medium': 60, 'low': 50, 'very_low': 0}
+}
+
+
+display_names = {
+    'cpu_usage_percent': 'CPU Usage',
+    'memory_percent': 'Memory Usage ',
+    'disk_percent': 'Disk Usage ',
+    'cpu_temperature': 'CPU Temperature'
+}
+
+def get_system_info():
+    data = get_hardware_data()
+    info_list = []
+    for key, value in data.items():
+        color = get_color(value, key)
+        display_name = display_names.get(key, key)
+        if display_name == 'CPU Temperature (°C)':
+            symbol = "°C"
+        else:
+            symbol = "%"
+        formatted_string = f"{display_name}: {value} {symbol}"
+        info_list.append((formatted_string, color))
+    return info_list
+
+
+
 def get_hardware_data():
     # Get CPU usage
     def get_cpu_usage():
@@ -65,5 +100,20 @@ def get_hardware_data():
     }
 
     return hardware_data
+
+# Function to determine color based on value and thresholds
+def get_color(value, key):
+    if value is None:
+        return GREY
+    if key in thresholds:
+        if value >= thresholds[key]['very_high']:
+            return RED
+        elif value >= thresholds[key]['high']:
+            return ORANGE
+        elif value >= thresholds[key]['medium']:
+            return YELLOW
+        elif value >= thresholds[key]['low']:
+            return BLUE
+    return GREEN
 
 
