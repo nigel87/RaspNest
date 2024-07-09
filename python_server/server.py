@@ -5,8 +5,7 @@ import threading
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-
-from python_server.modes import clock_and_weather, news, mode0, weather_detail, football, stock_market, system_info
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -25,17 +24,25 @@ MODES = {
     4: {"name": "Weather Detail", "run_function": weather_detail.run, "args": ()},
     5: {"name": "Football", "run_function": football.run, "args": ()},
     6: {"name": "Stock Market", "run_function": stock_market.run, "args": ()},
-    7: {"name": "System Info", "run_function": system_info.run, "args": ()},
 }
 
-TOTAL_NUMBER_OF_MODES = len(MODES)  
-
+TOTAL_NUMBER_OF_MODES = len(MODES)
+DEFAULT_MODE = MODES[3]  # Clock and Weather as default mode
 
 class LEDMatrixDisplayService:
     def __init__(self):
         self.current_mode = 0  # Initialize the current mode
         self.current_thread = None  # Initialize the current running thread
         self.stop_event = threading.Event()  # Event to signal stopping the current mode
+
+    def run_default_mode(self):
+        self.stop_event.clear()
+        mode_info = DEFAULT_MODE
+        self.current_thread = threading.Thread(
+            target=mode_info["run_function"],
+            args=mode_info.get("args", ()) + (self.stop_event,)
+        )
+        self.current_thread.start()
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -75,13 +82,18 @@ class LEDMatrixDisplayService:
         try:
             mode_info = MODES[mode]
             self.current_thread = threading.Thread(
-                target=mode_info["run_function"],
-                args=mode_info.get("args", ()) + (self.stop_event,) 
+                target=self.run_mode,
+                args=(mode_info["run_function"], mode_info.get("args", ()))
             )
             self.current_thread.start()
             return {"message": f"Mode {mode} ({mode_info['name']}) started"}
         except KeyError:
             return {"message": "Invalid mode"}
+
+    def run_mode(self, run_function, args):
+        run_function(*args, self.stop_event)
+        # After the mode finishes, run the default mode
+        self.run_default_mode()
 
 # Enable CORS globally using a custom tool
 def enable_cors():
