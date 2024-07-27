@@ -3,3 +3,4 @@ c/*.o
 .DS_Store
 copy_to_rasp.sh
 python_server/shared/service/secret.py
+.vscode/settings.json
