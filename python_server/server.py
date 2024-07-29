@@ -34,13 +34,15 @@ class LEDMatrixDisplayService:
         self.current_mode = 0  # Initialize the current mode
         self.current_thread = None  # Initialize the current running thread
         self.stop_event = threading.Event()  # Event to signal stopping the current mode
+        # Start the default mode
+        self.run_default_mode()
 
     def run_default_mode(self):
         self.stop_event.clear()
         mode_info = DEFAULT_MODE
         self.current_thread = threading.Thread(
-            target=mode_info["run_function"],
-            args=mode_info.get("args", ()) + (self.stop_event,)
+            target=self.run_mode,
+            args=(mode_info["run_function"], mode_info.get("args", ()))
         )
         self.current_thread.start()
 
