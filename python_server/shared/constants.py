@@ -2,6 +2,7 @@ import os
 
 ANSA_RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
 BALLKANWEB_RSS_FEED_URL = "https://www.balkanweb.com/feed/"
+BBC_RSS_FEED_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
 LAPSI_RSS_FEED_URL = "https://lapsi.al/feed/"
 
 
@@ -52,3 +53,5 @@ GREY = colors["grey"]
 LIME = colors["lime"]
 NAVY = colors["navy"]
 GOLD = colors["gold"]
+
+STOCK_CACHE_FILE = "/var/weather/stock_data_cache.json"
