@@ -11,6 +11,7 @@ ZIP_CODE = "IT"
 TEMP_FILE = "/var/weather/current_temperature.txt"
 CPP_BINARY_FOLDER = os.path.join(os.path.dirname(__file__), '../../c')
 CPP_BINARY_PATH = os.path.join(CPP_BINARY_FOLDER, 'text-scroller')
+CPP_CLOCK_WITH_TEXT_PATH = os.path.join(CPP_BINARY_FOLDER, 'clock_with_scrolling_text')
 
 FOOTBALL_BASE_URL = 'https://api.football-data.org/v2/'
 WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
