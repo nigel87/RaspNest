@@ -76,8 +76,9 @@ def display_on_matrix(title, colour, stop_event):
 def stop_scrolling_text():
     try:
         # Send SIGINT signal to stop the scrolling text or clock with scrolling text
-        subprocess.run(["pkill", "-2", "clock_with_scrolling_text"])
-        subprocess.run(["pkill", "-2", "text-scroller"])
+        # Use pkill -f to match the full command line for processes with long names
+        subprocess.run(["pkill", "-2", "-f", "clock_with_scrolling_text"])
+        subprocess.run(["pkill", "-2", "-f", "text-scroller"])
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 
@@ -108,8 +109,14 @@ def run_clock_with_scrolling_text(scroll_text, stop_event):
         return
 
     try:
-        while not stop_event.is_set():
-            time.sleep(1)  # Wait and check the stop event every second
+        display_time = calculate_display_time(scroll_text)
+        start_time = time.time()
+        while time.time() - start_time < display_time:
+            if stop_event.is_set():
+                stop_scrolling_text()
+                return
+        time.sleep(0.1)  # Check every 0.1 seconds
+
     finally:
         process.terminate()
         process.wait()
@@ -130,17 +137,3 @@ def calculate_display_time(text):
     return display_time
 
 
-def display_clock_and_text(title, colour, stop_event):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Run clock and text display concurrently
-        futures = [
-            executor.submit(run_clock_on_matrix, stop_event),
-            executor.submit(display_on_matrix, title, colour, stop_event)
-        ]
-
-        # Wait for both to finish (or be interrupted)
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                print(f"An error occurred: {e}")
