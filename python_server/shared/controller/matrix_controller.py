@@ -82,7 +82,7 @@ def stop_scrolling_text():
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 
-def run_clock_with_scrolling_text(scroll_text, stop_event):
+def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_event):
     if not os.path.exists(CPP_CLOCK_WITH_TEXT_PATH):
         print(f"Errore: Il file binario non esiste al percorso: {CPP_CLOCK_WITH_TEXT_PATH}")
         return
@@ -95,7 +95,9 @@ def run_clock_with_scrolling_text(scroll_text, stop_event):
     cmd = [
         CPP_CLOCK_WITH_TEXT_PATH, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'),
         '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
-        '--led-slowdown-gpio=4', '-t', scroll_text
+        '--led-slowdown-gpio=4', '-t', scroll_text,
+        '-C', clock_color,
+        '-c', text_colour
     ]
 
     print(f"Command: {cmd}")  # Debugging print

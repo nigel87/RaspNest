@@ -83,17 +83,19 @@ int main(int argc, char *argv[]) {
   const char *bdf_font_file = NULL;
   const char *scroll_text = NULL;
   int letter_spacing = 0;
-  Color color(255, 255, 0);
+  Color scroll_color(255, 255, 0);
+  Color clock_color(255, 255, 0);
   Color bg_color(0, 0, 0);
 
   int opt;
-  while ((opt = getopt(argc, argv, "f:S:C:B:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:S:C:B:t:c:")) != -1) {
     switch (opt) {
     case 'f': bdf_font_file = strdup(optarg); break;
     case 'S': letter_spacing = atoi(optarg); break;
-    case 'C': if (!parseColor(&color, optarg)) return usage(argv[0]); break;
+    case 'C': if (!parseColor(&scroll_color, optarg)) return usage(argv[0]); break;
     case 'B': if (!parseColor(&bg_color, optarg)) return usage(argv[0]); break;
     case 't': scroll_text = strdup(optarg); break;
+    case 'c': if (!parseColor(&clock_color, optarg)) return usage(argv[0]); break;
     default: return usage(argv[0]);
     }
   }
@@ -144,13 +146,13 @@ int main(int argc, char *argv[]) {
     int clock_x = (matrix->width() - time_width) / 2;
     rgb_matrix::DrawText(offscreen, font,
                          clock_x, clock_y,
-                         color, NULL, time_text, letter_spacing);
+                         clock_color, NULL, time_text, letter_spacing);
 
     // Display scrolling text at the bottom
     int scroll_width = rgb_matrix::DrawText(offscreen, font,
                                             scroll_pos,
                                             scroll_y,
-                                            color, NULL, scroll_text,
+                                            scroll_color, NULL, scroll_text,
                                             letter_spacing);
 
     --scroll_pos;
