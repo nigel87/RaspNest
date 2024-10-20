@@ -32,20 +32,15 @@
     fprintf(stderr, "Reads text from stdin and displays it. "
             "Empty string: clear screen\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr,
-            "\t-d <time-format>  : Default '%%H:%%M'. See strftime()\n"
-            "\t                    Can be provided multiple times for multiple "
-            "lines\n"
-            "\t-f <font-file>    : Use given font.\n"
-            "\t-x <x-origin>     : X-Origin of displaying text (Default: 0)\n"
-            "\t-y <y-origin>     : Y-Origin of displaying text (Default: 0)\n"
-            "\t-s <line-spacing> : Extra spacing between lines when multiple -d given\n"
-            "\t-S <spacing>      : Extra spacing between letters (Default: 0)\n"
-            "\t-C <r,g,b>        : Color. Default 255,255,0\n"
-            "\t-B <r,g,b>        : Background-Color. Default 0,0,0\n"
-            "\t-O <r,g,b>        : Outline-Color, e.g. to increase contrast.\n"
-            "\n"
-            );
+    fprintf(stderr, "\t-d <time-format>  : Default '%%H:%%M'. See strftime()\n");
+    fprintf(stderr, "\t-f <font-file>    : Use given font.\n");
+    fprintf(stderr, "\t-x <x-origin>     : X-Origin of displaying text (Default: 0)\n");
+    fprintf(stderr, "\t-y <y-origin>     : Y-Origin of displaying text (Default: 0)\n");
+    fprintf(stderr, "\t-s <line-spacing> : Extra spacing between lines when multiple -d given\n");
+    fprintf(stderr, "\t-S <spacing>      : Extra spacing between letters (Default: 0)\n");
+    fprintf(stderr, "\t-C <r,g,b>        : Color. Default 255,255,0\n");
+    fprintf(stderr, "\t-B <r,g,b>        : Background-Color. Default 0,0,0\n");
+    fprintf(stderr, "\t-O <r,g,b>        : Outline-Color, e.g. to increase contrast.\n");
     rgb_matrix::PrintMatrixFlags(stderr);
     return 1;
   }
@@ -55,33 +50,28 @@
   }
 
   static bool FullSaturation(const Color &c) {
-    return (c.r == 0 || c.r == 255)
-      && (c.g == 0 || c.g == 255)
-      && (c.b == 0 || c.b == 255);
+    return (c.r == 0 || c.r == 255) && (c.g == 0 || c.g == 255) && (c.b == 0 || c.b == 255);
   }
 
-std::string readTemperatureFromFile(const char *filename) {
-  std::ifstream file(filename);
-  printf("Reading from file: %s\n", filename);  // Debugging print
-  if (!file) {
-    printf("File not found or not accessible\n");  // Debugging print
-    return "N/A";
+  std::string readTemperatureFromFile(const char *filename) {
+    std::ifstream file(filename);
+    printf("Reading from file: %s\n", filename);  // Debugging print
+    if (!file) {
+      printf("File not found or not accessible\n");  // Debugging print
+      return "N/A";
+    }
+    std::string temp;
+    std::getline(file, temp);
+    printf("Read temperature: %s\n", temp.c_str());  // Debugging print
+    return temp;
   }
-  std::string temp;
-  std::getline(file, temp);
-  printf("Read temperature: %s\n", temp.c_str());  // Debugging print
-  return temp;
-}
 
   int main(int argc, char *argv[]) {
     RGBMatrix::Options matrix_options;
     rgb_matrix::RuntimeOptions runtime_opt;
-    if (!rgb_matrix::ParseOptionsFromFlags(&argc, &argv,
-                                          &matrix_options, &runtime_opt)) {
+    if (!rgb_matrix::ParseOptionsFromFlags(&argc, &argv, &matrix_options, &runtime_opt)) {
       return usage(argv[0]);
     }
-
-    // We accept multiple format lines
 
     std::vector<std::string> format_lines;
     Color color(255, 255, 0);
@@ -94,7 +84,7 @@ std::string readTemperatureFromFile(const char *filename) {
     int y_orig = 0;
     int letter_spacing = 0;
     int line_spacing = 0;
-    const char *temp_file = "/var/weather/current_temperature.txt";  // Percorso del file della temperatura
+    const char *temp_file = "/var/weather/current_temperature.txt";  // Temperature file path
 
     int opt;
     while ((opt = getopt(argc, argv, "x:y:f:C:B:O:s:S:d:")) != -1) {
@@ -138,9 +128,7 @@ std::string readTemperatureFromFile(const char *filename) {
       return usage(argv[0]);
     }
 
-    /*
-    * Load font. This needs to be a filename with a bdf bitmap font.
-    */
+    // Load font
     rgb_matrix::Font font;
     if (!font.LoadFont(bdf_font_file)) {
       fprintf(stderr, "Couldn't load font '%s'\n", bdf_font_file);
@@ -176,6 +164,9 @@ std::string readTemperatureFromFile(const char *filename) {
     signal(SIGTERM, InterruptHandler);
     signal(SIGINT, InterruptHandler);
 
+    time_t last_temp_read = 0;  // Track last time temperature was read
+    std::string temperature;
+
     while (!interrupt_received) {
       offscreen->Fill(bg_color.r, bg_color.g, bg_color.b);
       localtime_r(&next_time.tv_sec, &tm);
@@ -196,8 +187,14 @@ std::string readTemperatureFromFile(const char *filename) {
         line_offset += font.height() + line_spacing;
       }
 
-      // Legge la temperatura dal file e aggiungi il testo di visualizzazione nella parte inferiore
-      std::string temperature = readTemperatureFromFile(temp_file);
+      // Only read the temperature once every 15 minutes (900 seconds)
+      time_t current_time = time(NULL);
+      if (current_time - last_temp_read >= 900) {
+        temperature = readTemperatureFromFile(temp_file);
+        last_temp_read = current_time;  // Update last read time
+      }
+
+      // Display the temperature
       rgb_matrix::DrawText(offscreen, font,
                           x, y + matrix_options.rows / 2 + font.baseline(),
                           color, NULL, temperature.c_str(),
