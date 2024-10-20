@@ -25,7 +25,7 @@ MODES = {
     5: {"name": "Football", "run_function": football.run, "args": ()},
     6: {"name": "Stock Market", "run_function": stock_market.run, "args": ()},
     7: {"name": "System Info", "run_function": system_info.run, "args": ()},
-    8: {"name": "Main", "run_function": main.run, "args": (ANSA_RSS_FEED_URL,)}
+    8: {"name": "Main", "run_function": main.run, "args": ()}
 
 }
 
