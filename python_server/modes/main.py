@@ -41,7 +41,7 @@ def run(rss_feed_url, stop_event):
                 if entry_title not in displayed_news:
                     # Display the new news title
                     new_news_found = True
-                    run_clock_with_scrolling_text(entry_title, GREEN, GOLD, stop_event)
+                    display_new_news_five_times(entry_title, stop_event)
 
                     # Mark this title as displayed
                     displayed_news.add(entry_title)
@@ -56,6 +56,12 @@ def run(rss_feed_url, stop_event):
 
         # Wait for a while before checking for new news again
         time.sleep(60)
+
+
+def display_new_news_five_times(entry_title, stop_event):
+    for i in range(5):
+        run_clock_with_scrolling_text(entry_title, GREEN, GOLD, stop_event)
+
 
 def stop_clock():
     try:
