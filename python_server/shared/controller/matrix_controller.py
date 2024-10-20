@@ -6,7 +6,7 @@ import signal
 from python_server.shared.constants import CPP_BINARY_PATH, CPP_BINARY_FOLDER, TEMP_FILE, CPP_CLOCK_WITH_TEXT_PATH
 
 BASE_DISPLAY_TIME = 1.9
-SCALE_FACTOR = 0.135
+SCALE_FACTOR = 0.3
 
 clock_process = None  # Global variable to keep track of the clock subprocess
 
