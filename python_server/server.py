@@ -5,7 +5,7 @@ import threading
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -25,7 +25,7 @@ MODES = {
     5: {"name": "Football", "run_function": football.run, "args": ()},
     6: {"name": "Stock Market", "run_function": stock_market.run, "args": ()},
     7: {"name": "System Info", "run_function": system_info.run, "args": ()},
-
+    8: {"name": "Main", "run_function": main.run, "args": (ANSA_RSS_FEED_URL,)}
 
 }
 
