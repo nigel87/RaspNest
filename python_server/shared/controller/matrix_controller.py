@@ -10,6 +10,28 @@ SCALE_FACTOR = 0.3
 
 clock_process = None  # Global variable to keep track of the clock subprocess
 
+def run_clock_on_matrix_with_timeout(stop_event, timeout=30):
+    global clock_process
+    cmd = [
+        "sudo", "./clock", "-f", "../fonts/9x18.bdf", TEMP_FILE,
+        "--led-no-hardware-pulse", "--led-cols=64", "--led-gpio-mapping=adafruit-hat", "--led-slowdown-gpio=4", "-s=1", "-y=16"
+    ]
+
+    current_dir = os.getcwd()
+    os.chdir(CPP_BINARY_FOLDER)
+
+    process = subprocess.Popen(cmd)
+
+    start_time = time.time()  # Track the time when the process started
+
+    try:
+        # Run clock for 'timeout' seconds or until stop_event is set
+        while not stop_event.is_set() and (time.time() - start_time) < timeout:
+            time.sleep(1)  # Check every second
+    finally:
+        process.terminate()
+        process.wait()
+        os.chdir(current_dir)
 
 def run_clock_on_matrix(stop_event):
     global clock_process
