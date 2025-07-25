@@ -1,6 +1,7 @@
 import os
 import time
 import threading
+import logging
 from python_server.shared.controller.matrix_controller import stop_scrolling_text, run_clock_with_scrolling_text, run_clock_on_matrix_with_timeout
 import feedparser
 from python_server.shared.constants import RED, GOLD, GREEN, TEMP_FILE
@@ -30,7 +31,7 @@ def run(stop_event):
 
     while not stop_event.is_set():
         new_news_found = False  # Reset for each iteration
-        print(f"Checking for new news")  # Moved print statement to the right place
+        logging.info(f"Checking for new news")  # Log check for news each loop
 
         # Loop through all RSS feeds
         for rss_feed_url in rss_feed_urls:
@@ -45,7 +46,7 @@ def run(stop_event):
                     if entry_title not in displayed_news:
                         # Display the new news title
                         new_news_found = True
-                        display_new_news_five_times(entry_title, stop_event)
+                        display_new_news_three_times(entry_title, stop_event)
 
                         # Mark this title as displayed
                         displayed_news.add(entry_title)
@@ -59,12 +60,14 @@ def run(stop_event):
         if not new_news_found:
             run_clock_on_matrix_with_timeout(stop_event)
             stop_scrolling_text()
+            logging.info("Clock display completed, back to checking news.")
 
         # Wait for a while before checking for new news again
-        time.sleep(60)
+        time.sleep(0.01)
 
-def display_new_news_five_times(entry_title, stop_event):
-    for i in range(5):
+
+def display_new_news_three_times(entry_title, stop_event):
+    for i in range(3):
         run_clock_with_scrolling_text(entry_title, GREEN, GOLD, stop_event)
 
 def stop_clock():

@@ -3,10 +3,11 @@ import time
 import os
 import concurrent.futures
 import signal
+import logging
 from python_server.shared.constants import CPP_BINARY_PATH, CPP_BINARY_FOLDER, TEMP_FILE, CPP_CLOCK_WITH_TEXT_PATH
 
 BASE_DISPLAY_TIME = 1.9
-SCALE_FACTOR = 0.3
+SCALE_FACTOR = 0.33
 
 clock_process = None  # Global variable to keep track of the clock subprocess
 
@@ -61,18 +62,18 @@ def stop_clock_process():
             clock_process.terminate()  # Send SIGTERM to terminate gracefully
             clock_process.wait()  # Wait for the process to terminate
         except Exception as e:
-            print(f"Error stopping clock process: {e}")
+            logging.error(f"Error stopping clock process: {e}")
         finally:
             clock_process = None
 
 
 def display_on_matrix(title, colour, stop_event):
     if not os.path.exists(CPP_BINARY_PATH):
-        print(f"Errore: Il file binario non esiste al percorso: {CPP_BINARY_PATH}")
+        logging.error(f"Errore: Il file binario non esiste al percorso: {CPP_BINARY_PATH}")
         return
 
     if not os.access(CPP_BINARY_PATH, os.X_OK):
-        print(f"Errore: Il file binario non ha i permessi di esecuzione: {CPP_BINARY_PATH}")
+        logging.error(f"Errore: Il file binario non ha i permessi di esecuzione: {CPP_BINARY_PATH}")
         return
 
     args = [CPP_BINARY_PATH, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'), title,
@@ -106,11 +107,11 @@ def stop_scrolling_text():
 
 def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_event):
     if not os.path.exists(CPP_CLOCK_WITH_TEXT_PATH):
-        print(f"Errore: Il file binario non esiste al percorso: {CPP_CLOCK_WITH_TEXT_PATH}")
+        logging.error(f"Errore: Il file binario non esiste al percorso: {CPP_CLOCK_WITH_TEXT_PATH}")
         return
 
     if not os.access(CPP_CLOCK_WITH_TEXT_PATH, os.X_OK):
-        print(f"Errore: Il file binario non ha i permessi di esecuzione: {CPP_CLOCK_WITH_TEXT_PATH}")
+        logging.error(f"Errore: Il file binario non ha i permessi di esecuzione: {CPP_CLOCK_WITH_TEXT_PATH}")
         return
 
 
@@ -122,14 +123,14 @@ def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_even
         '-c', text_colour
     ]
 
-    print(f"Command: {cmd}")  # Debugging print
+    logging.debug(f"Command: {cmd}")  # Debugging print
 
     try:
         stop_scrolling_text()  # Stop any previously running text
         process = subprocess.Popen(cmd)
-        print(f"Process started with PID: {process.pid}")
+        logging.info(f"Process started with PID: {process.pid}")
     except Exception as e:
-        print(f"Error starting process: {str(e)}")
+        logging.error(f"Error starting process: {str(e)}")
         return
 
     try:
@@ -144,7 +145,7 @@ def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_even
     finally:
         process.terminate()
         process.wait()
-        print("Process terminated.")
+        logging.info("Process terminated.")
 
 
 def start_scrolling_text(args):
@@ -152,7 +153,7 @@ def start_scrolling_text(args):
         stop_scrolling_text()
         subprocess.Popen(args)
     except Exception as e:
-        print(f"Error starting scrolling text: {str(e)}")
+        logging.error(f"Error starting scrolling text: {str(e)}")
 
 
 def calculate_display_time(text):
