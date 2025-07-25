@@ -1,4 +1,5 @@
 import os
+import logging
 from python_server.shared.controller.matrix_controller import display_on_matrix, stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.shared.service.weather_service import get_weather_rome
@@ -43,5 +44,5 @@ def run(stop_event):
 
 # Aggiungi log di debug per il percorso e i permessi
 if __name__ == '__main__':
-    print(f"Percorso binario CPP: {CPP_BINARY_PATH}")
-    print(f"Permessi di esecuzione: {os.access(CPP_BINARY_PATH, os.X_OK)}")
+    logging.info(f"Percorso binario CPP: {CPP_BINARY_PATH}")
+    logging.info(f"Permessi di esecuzione: {os.access(CPP_BINARY_PATH, os.X_OK)}")

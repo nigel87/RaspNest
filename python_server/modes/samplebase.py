@@ -2,6 +2,7 @@ import argparse
 import time
 import sys
 import os
+import logging
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/..'))
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
@@ -39,7 +40,7 @@ class SampleBase(object):
             run_text = RunText(matrix=self.matrix, text=self.args.text)
             run_text.run()
         except KeyboardInterrupt:
-            print("Exiting\n")
+            logging.info("Exiting\n")
             sys.exit(0)
 
         return True

@@ -2,6 +2,7 @@ import requests
 import os
 import json
 from datetime import datetime, timedelta
+import logging
 from python_server.shared.constants import STOCK_MARKET_BASE_URL, STOCK_CACHE_FILE
 from python_server.shared.service.secret import STOCK_MARKET_API_KEY
 
@@ -58,16 +59,16 @@ def get_daily_price_change(symbol):
       data = response.json()
 
       if "Error Message" in data:
-        print(f"Error: {data['Error Message']}")
+        logging.error(f"Error: {data['Error Message']}")
         return None
       if "Time Series (Daily)" not in data:
-        print(f"Error: 'Time Series (Daily)' data not found in the API response.")
+        logging.error(f"Error: 'Time Series (Daily)' data not found in the API response.")
         return None
 
       # Save response to cache
       save_to_cache(symbol, data)
     else:
-      print(f"Error: API request failed. Status code: {response.status_code}")
+      logging.error(f"Error: API request failed. Status code: {response.status_code}")
       return None
 
   # Extract data for the latest trading day

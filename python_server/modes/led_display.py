@@ -1,9 +1,10 @@
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 from PIL import Image, ImageDraw, ImageFont
 import time
+import logging
 
 def display_text(text, duration=5):
-    print("start display text")
+    logging.info("start display text")
     # Configuration for the LED matrix
     options = RGBMatrixOptions()
     options.rows = 32
@@ -30,13 +31,13 @@ def display_text(text, duration=5):
     # Sleep to keep the text displayed for the specified duration
     time.sleep(duration)
 
-    print("exit display text")
+    logging.info("exit display text")
 
 
 
 
 def scroll_text(text, duration=5):
-    print("start scroll text")
+    logging.info("start scroll text")
     # Configuration for the LED matrix
     options = RGBMatrixOptions()
     options.rows = 32
@@ -75,11 +76,11 @@ def scroll_text(text, duration=5):
     # Sleep to keep the text displayed for the specified duration
     time.sleep(duration)
 
-    print("exit scroll text")
+    logging.info("exit scroll text")
 
 
 def scroll_text_infinite(text, scroll_speed=0.05):
-        print("start infinite scroll text")
+        logging.info("start infinite scroll text")
         # Configuration for the LED matrix
         options = RGBMatrixOptions()
         options.rows = 32
@@ -109,7 +110,7 @@ def scroll_text_infinite(text, scroll_speed=0.05):
 
 
 def display_text_infinite(text, duration=5):
-    print("start display text")
+    logging.info("start display text")
 
     # Configuration for the LED matrix
     options = RGBMatrixOptions()
@@ -151,7 +152,7 @@ def display_text_infinite(text, duration=5):
 
             time.sleep(0.05)
     except KeyboardInterrupt:
-        print("Exiting")
+        logging.info("Exiting")
         matrix.Clear()
         matrix.Update()
         return

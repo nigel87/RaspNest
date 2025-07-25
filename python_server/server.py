@@ -5,7 +5,7 @@ import threading
 import logging
 
 # --- Logging Setup ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 

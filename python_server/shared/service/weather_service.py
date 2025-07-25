@@ -1,5 +1,6 @@
 
 import requests
+import logging
 from python_server.shared.constants import  CITY, WEATHER_BASE_URL, ZIP_CODE
 from python_server.shared.service.secret import WEATHER_API_KEY
 
@@ -17,7 +18,7 @@ def get_weather(city, zip_code):
         data = response.json()
         return data
     else:
-        print("Failed to retrieve weather data")
+        logging.error("Failed to retrieve weather data")
         return "N/A"
     
 

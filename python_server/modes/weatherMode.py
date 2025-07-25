@@ -1,6 +1,7 @@
 import os
 import requests
 import time
+import logging
 
 # API_KEY = os.environ.get("API_KEY")
 API_KEY = "bb38d5d6bcebd3b330d05311007a4bd0"
@@ -19,7 +20,7 @@ def get_weather(city, zip_code):
     if response.status_code == 200:
         data = response.json()
         temperature = data["main"]["temp"]
-        print(f"Temperature in {city} ({zip_code}): {temperature}°C")
+        logging.info(f"Temperature in {city} ({zip_code}): {temperature}°C")
     else:
         print("Failed to retrieve weather data")
 
