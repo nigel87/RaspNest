@@ -89,6 +89,28 @@ class LEDMatrixDisplayService:
         except KeyError:
             return {"message": "Invalid mode"}
 
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def list_assets(self):
+        assets_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../assets'))
+        logging.info(f"Listing assets from: {assets_path}")
+        asset_structure = {}
+        try:
+            for root, dirs, files in os.walk(assets_path):
+                relative_path = os.path.relpath(root, assets_path)
+                if relative_path == '.':
+                    current_folder = "/"
+                else:
+                    current_folder = relative_path.replace(os.sep, '/')
+                
+                asset_structure[current_folder] = files
+            logging.info("Assets listed successfully.")
+            return {"status": "success", "assets": asset_structure}
+        except Exception as e:
+            logging.error(f"Error listing assets: {e}")
+            cherrypy.response.status = 500
+            return {"status": "error", "message": str(e)}
+
 # Enable CORS globally using a custom tool
 def enable_cors():
     cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
