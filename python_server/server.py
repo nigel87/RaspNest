@@ -30,7 +30,7 @@ MODES = {
     6: {"name": "Stock Market", "run_function": stock_market.run, "args": ()},
     7: {"name": "System Info", "run_function": system_info.run, "args": ()},
     8: {"name": "Main", "run_function": main.run, "args": ()},
-    9: {"name": "Image Display", "run_function": image_display.run, "args": ("/home/nigel/RaspNest/assets/gif/Fireplace.gif",)}
+    9: {"name": "Image Display", "run_function": image_display.run, "args": ("../assets/gif/Fireplace.gif",)}
 
 }
 
