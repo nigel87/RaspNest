@@ -77,9 +77,18 @@ class LEDMatrixDisplayService:
         else:
             mode = int(mode)
 
-            # Run the corresponding mode using the dictionary
+        # Run the corresponding mode using the dictionary
         try:
             mode_info = MODES[mode]
+            run_args = list(mode_info.get("args", ())) # Convert to list to modify
+
+            if mode == 9: # Special handling for image display mode
+                if text:
+                    image_path = os.path.join("../assets", text)
+                else:
+                    image_path = "../assets/gif/Fireplace.gif" # Default image
+                run_args.append(image_path)
+
             self.current_thread = threading.Thread(
                 target=mode_info["run_function"],
                 args=mode_info.get("args", ()) + (self.stop_event,)

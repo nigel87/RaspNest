@@ -11,6 +11,7 @@ SCALE_FACTOR = 0.33
 
 clock_process = None  # Global variable to keep track of the clock subprocess
 
+
 def run_clock_on_matrix_with_timeout(stop_event, timeout=30):
     global clock_process
     cmd = [
@@ -21,7 +22,7 @@ def run_clock_on_matrix_with_timeout(stop_event, timeout=30):
     current_dir = os.getcwd()
     os.chdir(CPP_BINARY_FOLDER)
 
-    process = subprocess.Popen(cmd)
+    clock_process = subprocess.Popen(cmd)
 
     start_time = time.time()  # Track the time when the process started
 
@@ -30,9 +31,12 @@ def run_clock_on_matrix_with_timeout(stop_event, timeout=30):
         while not stop_event.is_set() and (time.time() - start_time) < timeout:
             time.sleep(1)  # Check every second
     finally:
-        process.terminate()
-        process.wait()
+        if clock_process:
+            clock_process.terminate()
+            clock_process.wait()
+            clock_process = None
         os.chdir(current_dir)
+
 
 def run_clock_on_matrix(stop_event):
     global clock_process
@@ -44,14 +48,16 @@ def run_clock_on_matrix(stop_event):
     current_dir = os.getcwd()
     os.chdir(CPP_BINARY_FOLDER)
 
-    process = subprocess.Popen(cmd)
+    clock_process = subprocess.Popen(cmd)
 
     try:
         while not stop_event.is_set():
             time.sleep(1)
     finally:
-        process.terminate()
-        process.wait()
+        if clock_process:
+            clock_process.terminate()
+            clock_process.wait()
+            clock_process = None
         os.chdir(current_dir)
         
 
@@ -102,6 +108,7 @@ def stop_scrolling_text():
         # Use pkill -f to match the full command line for processes with long names
         subprocess.run(["pkill", "-2", "-f", "clock_with_scrolling_text"])
         subprocess.run(["pkill", "-2", "-f", "text-scroller"])
+        subprocess.run(["pkill", "-2", "-f", "clock"])
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 
@@ -124,28 +131,23 @@ def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_even
     ]
 
     logging.debug(f"Command: {cmd}")  # Debugging print
-
+    process = None
     try:
         stop_scrolling_text()  # Stop any previously running text
         process = subprocess.Popen(cmd)
         logging.info(f"Process started with PID: {process.pid}")
-    except Exception as e:
-        logging.error(f"Error starting process: {str(e)}")
-        return
 
-    try:
         display_time = calculate_display_time(scroll_text)
         start_time = time.time()
         while time.time() - start_time < display_time:
             if stop_event.is_set():
-                stop_scrolling_text()
                 return
-        time.sleep(0.1)  # Check every 0.1 seconds
-
+            time.sleep(0.1)  # Check every 0.1 seconds
     finally:
-        process.terminate()
-        process.wait()
-        logging.info("Process terminated.")
+        if process:
+            process.terminate()
+            process.wait()
+            logging.info("Process terminated.")
 
 
 def start_scrolling_text(args):
@@ -160,5 +162,6 @@ def calculate_display_time(text):
     text_length = len(text)
     display_time = int(BASE_DISPLAY_TIME + (text_length * SCALE_FACTOR))
     return display_time
+""
 
 

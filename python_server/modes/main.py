@@ -19,6 +19,10 @@ displayed_news = set()
 def run(stop_event):
     stop_scrolling_text()
 
+    # Start the temperature update thread
+    temperature_thread = threading.Thread(target=update_temperature_periodically, args=(stop_event,))
+    temperature_thread.start()
+
     rss_feed_urls = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
     new_news_found = False
 
@@ -70,21 +74,30 @@ def display_new_news_three_times(entry_title, stop_event):
     for i in range(3):
         run_clock_with_scrolling_text(entry_title, GREEN, GOLD, stop_event)
 
+
 def stop_clock():
     try:
         subprocess.run(["pkill", "-2", "clock"])
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 
+
 def write_temperature_to_file(temperature):
     with open(TEMP_FILE, "w") as file:
         file.write(temperature)
 
+
 def update_temperature_periodically(stop_event):
     while not stop_event.is_set():
-        temperature = str(get_weather_rome()["main"]["temp"]) + '°C'
-        write_temperature_to_file(temperature)
-        for _ in range(600):  # Check stop_event every second for 10 minutes
+        try:
+            temperature = str(get_weather_rome()["main"]["temp"]) + '°C'
+            write_temperature_to_file(temperature)
+            logging.info(f"Temperature updated to {temperature}")
+        except Exception as e:
+            logging.error(f"Error updating temperature: {e}")
+
+        # Wait for 15 minutes (900 seconds), checking for stop_event every second
+        for _ in range(900):
             if stop_event.is_set():
                 break
             time.sleep(1)
