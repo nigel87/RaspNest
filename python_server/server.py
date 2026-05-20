@@ -9,10 +9,11 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
+from python_server.shared.service import nest_music_monitor
 
 # Set the working directory to the project folder
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -30,7 +31,8 @@ MODES = {
     6: {"name": "Stock Market", "run_function": stock_market.run, "args": ()},
     7: {"name": "System Info", "run_function": system_info.run, "args": ()},
     8: {"name": "Main", "run_function": main.run, "args": ()},
-    9: {"name": "Image Display", "run_function": image_display.run, "args": ("../assets/gif/Fireplace.gif",)}
+    9: {"name": "Image Display", "run_function": image_display.run, "args": ("../assets/gif/Fireplace.gif",)},
+    10: {"name": "YouTube Music", "run_function": youtube_music.run, "args": ()}
 
 }
 
@@ -88,15 +90,56 @@ class LEDMatrixDisplayService:
                 else:
                     image_path = "../assets/gif/Fireplace.gif" # Default image
                 run_args.append(image_path)
+            elif mode == 10: # Special handling for YouTube Music mode
+                artist = data.get('artist', 'Unknown Artist')
+                image_path = data.get('image_path', TEMP_ALBUM_ART_PATH)
+                run_args = [text, artist, image_path]
 
             self.current_thread = threading.Thread(
                 target=mode_info["run_function"],
-                args=mode_info.get("args", ()) + (self.stop_event,)
+                args=tuple(run_args) + (self.stop_event,)
             )
             self.current_thread.start()
             return {"message": f"Mode {mode} ({mode_info['name']}) started"}
         except KeyError:
             return {"message": "Invalid mode"}
+
+    def trigger_mode_change(self, mode_id, text="Hello, World!", artist="Unknown Artist", image_path=None):
+        """
+        Thread-safe internal hook allowing background threads (e.g. Nest Monitor)
+        to transition matrix display modes programmatically.
+        """
+        logging.info(f"Local request to start mode {mode_id}")
+        
+        # Stop current running thread
+        if self.current_thread and self.current_thread.is_alive():
+            self.stop_event.set()
+            self.current_thread.join()
+            stop_scrolling_text()
+            stop_clock()
+
+        self.stop_event.clear()
+        self.current_mode = int(mode_id)
+
+        try:
+            mode_info = MODES[self.current_mode]
+            run_args = list(mode_info.get("args", ()))
+
+            if self.current_mode == 10:
+                run_args = [text, artist, image_path or TEMP_ALBUM_ART_PATH]
+            elif self.current_mode == 9:
+                run_args = [image_path or "../assets/gif/Fireplace.gif"]
+
+            self.current_thread = threading.Thread(
+                target=mode_info["run_function"],
+                args=tuple(run_args) + (self.stop_event,)
+            )
+            self.current_thread.start()
+            logging.info(f"Successfully started mode {self.current_mode} via local trigger.")
+        except KeyError:
+            logging.error(f"Invalid mode {self.current_mode} requested via local trigger.")
+        except Exception as e:
+            logging.error(f"Error starting mode {self.current_mode} via local trigger: {e}")
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -130,7 +173,15 @@ def enable_cors():
 cherrypy.tools.enable_cors = cherrypy.Tool('before_handler', enable_cors)
 
 if __name__ == '__main__':
-    cherrypy.quickstart(LEDMatrixDisplayService(), '/', {
+    service = LEDMatrixDisplayService()
+    
+    # Start Google Nest Mini local casting monitor daemon
+    try:
+        nest_music_monitor.start_monitoring(service)
+    except Exception as e:
+        logging.error(f"Failed to start Nest Music Monitor discovery: {e}")
+        
+    cherrypy.quickstart(service, '/', {
         '/': {
             'tools.enable_cors.on': True
         }
