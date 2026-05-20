@@ -1,88 +1,84 @@
-import requests
+import yfinance as yf
 import os
 import json
 from datetime import datetime, timedelta
 import logging
-from python_server.shared.constants import STOCK_MARKET_BASE_URL, STOCK_CACHE_FILE
-from python_server.shared.service.secret import STOCK_MARKET_API_KEY
 
-
+STOCK_CACHE_FILE = "/var/weather/stock_data_cache.json"
 STOCK_CACHE_DURATION = timedelta(hours=1)  # Cache duration of 1 hour
 
 
-def get_stock_market_data(function, symbol):
-  url = f"{STOCK_MARKET_BASE_URL}?function={function}&symbol={symbol}&apikey={STOCK_MARKET_API_KEY}"
-  return requests.get(url)
-
 def load_cached_data(symbol):
-  if os.path.exists(STOCK_CACHE_FILE):
-    with open(STOCK_CACHE_FILE, 'r') as file:
-      data = json.load(file)
-      if symbol in data:
-        cache_entry = data[symbol]
-        cache_time = datetime.fromisoformat(cache_entry['timestamp'])
-        if datetime.now() - cache_time < STOCK_CACHE_DURATION:
-          return cache_entry['data']
-  return None
-
-def save_to_cache(symbol, api_data):
-  cache_data = {}
-  if os.path.exists(STOCK_CACHE_FILE):
-    with open(STOCK_CACHE_FILE, 'r') as file:
-      cache_data = json.load(file)
-
-  cache_data[symbol] = {
-    'timestamp': datetime.now().isoformat(),
-    'data': api_data
-  }
-
-  with open(STOCK_CACHE_FILE, 'w') as file:
-    json.dump(cache_data, file)
-
-def get_daily_price_change(symbol):
-  """
-  This method fetches daily price data from Alpha Vantage API and calculates the daily price change percentage.
-  Args:
-      symbol (str): The stock symbol (e.g., AAPL)
-  Returns:
-      float: The daily price change percentage (or None if data unavailable)
-  """
-
-  # Check if data is available in the cache
-  cached_data = load_cached_data(symbol)
-  if cached_data:
-    data = cached_data
-  else:
-    function = "TIME_SERIES_DAILY"
-    response = get_stock_market_data(function, symbol)
-    if response.status_code == 200:
-      data = response.json()
-
-      if "Error Message" in data:
-        logging.error(f"Error: {data['Error Message']}")
-        return None
-      if "Time Series (Daily)" not in data:
-        logging.error(f"Error: 'Time Series (Daily)' data not found in the API response.")
-        return None
-
-      # Save response to cache
-      save_to_cache(symbol, data)
-    else:
-      logging.error(f"Error: API request failed. Status code: {response.status_code}")
-      return None
-
-  # Extract data for the latest trading day
-  latest_day = list(data["Time Series (Daily)"].keys())[0]
-  latest_close = float(data["Time Series (Daily)"][latest_day]["4. close"])
-
-  # Previous day data (assuming data is available for two days)
-  try:
-    previous_day = list(data["Time Series (Daily)"].keys())[1]
-    previous_close = float(data["Time Series (Daily)"][previous_day]["4. close"])
-  except IndexError:
-    print("Warning: Insufficient data for calculating daily change.")
+    if os.path.exists(STOCK_CACHE_FILE):
+        with open(STOCK_CACHE_FILE, 'r') as file:
+            try:
+                data = json.load(file)
+                if symbol in data:
+                    cache_entry = data[symbol]
+                    cache_time = datetime.fromisoformat(cache_entry['timestamp'])
+                    if datetime.now() - cache_time < STOCK_CACHE_DURATION:
+                        value = cache_entry['data']
+                        # Guard against old Alpha Vantage dict-format cache entries
+                        if isinstance(value, (int, float)):
+                            return value
+            except (json.JSONDecodeError, KeyError):
+                pass
     return None
 
-  # Calculate daily price change percentage
-  daily_change = ((latest_close - previous_close) / previous_close) * 100
-  return daily_change
+
+def save_to_cache(symbol, change_pct):
+    cache_data = {}
+    if os.path.exists(STOCK_CACHE_FILE):
+        try:
+            with open(STOCK_CACHE_FILE, 'r') as file:
+                cache_data = json.load(file)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    cache_data[symbol] = {
+        'timestamp': datetime.now().isoformat(),
+        'data': change_pct
+    }
+
+    with open(STOCK_CACHE_FILE, 'w') as file:
+        json.dump(cache_data, file)
+
+
+def get_daily_price_change(symbol):
+    """
+    Fetches the daily price change percentage using Yahoo Finance.
+    Works for US stocks (GOOG) and European ETFs (SXR9.DE, ESIT.MI, DFNC.L).
+
+    Args:
+        symbol (str): Yahoo Finance ticker (e.g. 'GOOG', 'SXR9.DE')
+    Returns:
+        float: Daily price change percentage, or None if unavailable.
+    """
+    # Return from cache if fresh
+    cached = load_cached_data(symbol)
+    if cached is not None:
+        logging.info(f"[Stock Cache] {symbol}: {cached:.2f}%")
+        return cached
+
+    try:
+        ticker = yf.Ticker(symbol)
+        # Fetch last 5 days to ensure we always have at least 2 trading days
+        hist = ticker.history(period="5d")
+
+        if hist.empty or len(hist) < 2:
+            logging.error(f"[Stock] Not enough data for {symbol}")
+            return None
+
+        latest_close   = hist["Close"].iloc[-1]
+        previous_close = hist["Close"].iloc[-2]
+
+        if previous_close == 0:
+            return None
+
+        daily_change = ((latest_close - previous_close) / previous_close) * 100
+        save_to_cache(symbol, daily_change)
+        return daily_change
+
+    except Exception as e:
+        logging.error(f"[Stock] Error fetching {symbol}: {e}")
+        return None
