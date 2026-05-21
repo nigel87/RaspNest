@@ -1,0 +1,32 @@
+========================================================================
+                      RASPNEST FUTURE UPDATES & TODO
+========================================================================
+
+INTEGRAZIONE EQUALIZZATORE VINTAGE CON YOUTUBE MUSIC (MODE 10)
+------------------------------------------------------------------------
+Obiettivo: Visualizzare le barre dell'equalizzatore grafico vintage (stile Mode 12) 
+nella parte inferiore dello schermo (es. gli ultimi 8 pixel verticali) 
+mentre è attiva la modalità YouTube Music, per dare un feedback dinamico 
+durante l'ascolto dei brani.
+
+OPZIONI DA VALUTARE:
+
+[ ] OPZIONE 1: Acquisizione Audio Reale tramite Microfono Ambientale
+    - Requisiti: Microfono USB economico collegato al Raspberry Pi.
+    - Implementazione: 
+      * Aprire uno stream PyAudio in background dentro `youtube_music.py`.
+      * Eseguire una Fast Fourier Transform (FFT) rapida sui pacchetti audio 
+        catturati dal microfono.
+      * Mappare le frequenze su 10 bande visualizzate in basso con il gradiente 
+        verde/giallo/rosso classico.
+    - Vantaggi: Feedback reale, reattivo al 100% alla musica suonata nella stanza.
+
+[ ] OPZIONE 2: Equalizzatore Ritmico Simulato (Senza Hardware Aggiuntivo)
+    - Requisiti: Nessun hardware aggiuntivo.
+    - Implementazione:
+      * Creare un generatore di onde matematiche (sine/cos + rumore) in base 
+        a un tempo ipotetico costante (es. 120 BPM) all'interno di `youtube_music.py`.
+      * Aggiornare le altezze delle barre a 30 FPS simulando un ritmo musicale.
+    - Vantaggi: Estremamente stabile, costo zero, funziona subito in qualsiasi ambiente.
+
+========================================================================

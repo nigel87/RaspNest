@@ -9,7 +9,7 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -33,8 +33,8 @@ MODES = {
     8: {"name": "Main", "run_function": main.run, "args": ()},
     9: {"name": "Image Display", "run_function": image_display.run, "args": ("../assets/gif/Fireplace.gif",)},
     10: {"name": "YouTube Music", "run_function": youtube_music.run, "args": ()},
-    11: {"name": "ATAC Bus 74029", "run_function": atac_bus.run, "args": ()}
-
+    11: {"name": "ATAC Bus 74029", "run_function": atac_bus.run, "args": ()},
+    12: {"name": "Retro Pixel Art", "run_function": retro_gaming.run, "args": ()}
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)
