@@ -9,7 +9,7 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics, aquarium
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -44,7 +44,8 @@ MODES = {
     12: {"name": "Retro Pixel Art", "run_function": retro_gaming.run, "args": ()},
     13: {"name": "Outrun Highway", "run_function": outrun.run, "args": ()},
     14: {"name": "Cozy Cyberpunk", "run_function": cyberpunk.run, "args": ()},
-    15: {"name": "Sand Physics", "run_function": sand_physics.run, "args": ()}
+    15: {"name": "Sand Physics", "run_function": sand_physics.run, "args": ()},
+    16: {"name": "Cozy Virtual Aquarium", "run_function": aquarium.run, "args": ()}
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)
@@ -178,6 +179,23 @@ class LEDMatrixDisplayService:
         from python_server.modes.sand_physics import sand_queue
         sand_queue.put({"x": x, "color": color_tuple})
         return {"status": "success", "message": f"Sand pixel queued at column {x}"}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def feed_fish(self):
+        if cherrypy.request.method == 'OPTIONS':
+            # Respond to preflight request
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            cherrypy.response.headers['Access-Control-Max-Age'] = '3600'
+            return ''
+
+        import random
+        from python_server.modes.aquarium import food_queue
+        food_queue.put({"x": random.randint(5, 58), "y": 0, "id": random.random()})
+        return {"status": "success", "message": "Fish food dropped!"}
 
     @cherrypy.expose
     @cherrypy.tools.json_out()

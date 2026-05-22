@@ -58,3 +58,32 @@ NUOVE MODALITÀ PIXEL ART IN VALUTAZIONE
 
 ========================================================================
 
+[ ] OPZIONE 5: Integrazione Chromecast & Samsung TV (Smart Automation & Mirroring)
+    - Descrizione: Connettere il display LED alle TV di casa per mirroring grafico 
+      e automazioni intelligenti basate sullo stato degli schermi.
+    - Dettagli:
+      * Ambient Sync (pychromecast/samsungtvws): Rileva l'accensione/spegnimento della TV 
+        Samsung o la riproduzione su Chromecast video. All'avvio di un film, la matrice 
+        si attenua o si spegne per il cinema; allo spegnimento della TV, i LED si spengono 
+        per risparmiare energia; all'apertura di Spotify, si lancia l'equalizzatore.
+      * Web Mirroring (Tizen/DashCast): Esporre un URL con il simulatore LED interattivo 
+        ad alta definizione e riprodurlo a schermo intero sulla Smart TV o via Chromecast, 
+        trasformando la TV in un enorme quadro animato di pixel art.
+
+[ ] OPZIONE 6: Cozy Virtual Aquarium (Acquario Rétro Interattivo)
+    - Descrizione: Un acquario virtuale in pixel art 64x32 con pesci tropicali animati, 
+      piante marine ondeggianti, bollicine d'aria e una splendida illuminazione dinamica.
+    - Dettagli:
+      * Fondale Marino Premium: Sfondo a gradiente blu/turchese profondo, con raggi solari 
+        traslucidi (godrays) che scendono dall'alto ondulando dolcemente.
+      * Fauna Animata: Almeno 3 tipi di pesci pixel art (pesce pagliaccio arancione/bianco, 
+        pesce chirurgo blu/giallo, e una medusa rosa semitrasparente che si contrae) con 
+        movimenti fluidi a sinistra/destra e rotazione automatica sui bordi.
+      * Flora Ondeggiante e Bolle: Alghe marine e anemoni sul fondale che ondeggiano 
+        tramite funzioni trigonometriche (sine wave), e micro-bollicine ciano che salgono 
+        con traiettorie a zig-zag casuali.
+      * Nutrizione Interattiva (HTTP Request): Un pulsante "Dai da Mangiare" sulla dashboard 
+        HomeCommander che fa cadere fiocchi dorati di cibo dal pelo dell'acqua, attirando 
+        i pesci vicini che nuotano per mangiarli.
+
+========================================================================
