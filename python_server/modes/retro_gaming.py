@@ -129,6 +129,7 @@ def run(stop_event, override_mode=None):
         options.hardware_mapping = 'adafruit-hat'
         options.gpio_slowdown = 4
         options.disable_hardware_pulsing = True
+        options.drop_privileges = False
         try:
             matrix = RGBMatrix(options=options)
         except Exception as e:
@@ -451,6 +452,9 @@ def run(stop_event, override_mode=None):
         # Clean shutdown and clear matrix
         if HAS_MATRIX and matrix is not None:
             matrix.Clear()
+            del matrix
+            import gc
+            gc.collect()
         if audio_stream is not None:
             try:
                 audio_stream.stop_stream()

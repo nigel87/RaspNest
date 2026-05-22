@@ -30,3 +30,31 @@ OPZIONI DA VALUTARE:
     - Vantaggi: Estremamente stabile, costo zero, funziona subito in qualsiasi ambiente.
 
 ========================================================================
+NUOVE MODALITÀ PIXEL ART IN VALUTAZIONE
+========================================================================
+
+[ ] OPZIONE 3: Tamagotchi / Pixel Pet Interattivo
+    - Descrizione: Un animaletto virtuale (stile Yoshi o cucciolo retrò) che vive 
+      sulla matrice LED, con cui interagire tramite pulsanti dedicati sulla 
+      dashboard Angular (Nutri, Accarezza, Gioca).
+    - Dettagli:
+      * Animazioni dedicate per mangiare (biscotti che cadono dall'alto), 
+        cuori fluttuanti per coccole e corsa/salto.
+      * Ciclo Giorno/Notte reale: attivo e giocoso di giorno, sbadiglia la sera 
+        e si addormenta con cappellino da notte e animazione "Zzz" alle 22:30.
+      * Orologio e meteo posizionati compatti nella parte superiore.
+
+[ ] OPZIONE 4: Cozy Pixel Fireplace (Caminetto Procedurale)
+    - Descrizione: Un caminetto in mattoni rossi e grigi con fiamme fluide 
+      e realistiche generate in tempo reale.
+    - Dettagli:
+      * Algoritmo di rumore procedurale (Perlin/Simplex noise) per generare fiamme 
+        dinamiche e mai ripetitive.
+      * Transizione cromatica dal bianco-azzurro del nucleo, all'arancione, rosso, 
+        fino a scintille scure che fluttuano verso la canna fumaria.
+      * Controllo dell'intensità del fuoco tramite la dashboard (da brace soffusa 
+        a fuoco scoppiettante).
+      * Easter egg natalizio automatico (calze appese alla mensola del camino).
+
+========================================================================
+

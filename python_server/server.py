@@ -9,7 +9,7 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics
 from python_server.shared.controller.matrix_controller import stop_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -18,8 +18,15 @@ from python_server.shared.service import nest_music_monitor
 # Set the working directory to the project folder
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-# Configure CherryPy to listen on a specific host (e.g., 192.168.1.143)
-cherrypy.config.update({'server.socket_host': '192.168.1.144'})
+# Configure CherryPy to listen on a specific host and disable the autoreloader in production
+cherrypy.config.update({
+    'server.socket_host': '192.168.1.144',
+    'engine.autoreload.on': False
+})
+
+# Safeguard: fully unsubscribe CherryPy's autoreloader plugin to ensure it never restarts the process
+if hasattr(cherrypy.engine, 'autoreload'):
+    cherrypy.engine.autoreload.unsubscribe()
 
 MODES = {
     0: {"name": "News (ANSA)", "run_function": news.run, "args": (ANSA_RSS_FEED_URL,)},
@@ -34,7 +41,10 @@ MODES = {
     9: {"name": "Image Display", "run_function": image_display.run, "args": ("../assets/gif/Fireplace.gif",)},
     10: {"name": "YouTube Music", "run_function": youtube_music.run, "args": ()},
     11: {"name": "ATAC Bus 74029", "run_function": atac_bus.run, "args": ()},
-    12: {"name": "Retro Pixel Art", "run_function": retro_gaming.run, "args": ()}
+    12: {"name": "Retro Pixel Art", "run_function": retro_gaming.run, "args": ()},
+    13: {"name": "Outrun Highway", "run_function": outrun.run, "args": ()},
+    14: {"name": "Cozy Cyberpunk", "run_function": cyberpunk.run, "args": ()},
+    15: {"name": "Sand Physics", "run_function": sand_physics.run, "args": ()}
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)
@@ -98,7 +108,8 @@ class LEDMatrixDisplayService:
 
             self.current_thread = threading.Thread(
                 target=mode_info["run_function"],
-                args=tuple(run_args) + (self.stop_event,)
+                args=tuple(run_args) + (self.stop_event,),
+                daemon=True
             )
             self.current_thread.start()
             return {"message": f"Mode {mode} ({mode_info['name']}) started"}
@@ -133,7 +144,8 @@ class LEDMatrixDisplayService:
 
             self.current_thread = threading.Thread(
                 target=mode_info["run_function"],
-                args=tuple(run_args) + (self.stop_event,)
+                args=tuple(run_args) + (self.stop_event,),
+                daemon=True
             )
             self.current_thread.start()
             logging.info(f"Successfully started mode {self.current_mode} via local trigger.")
@@ -141,6 +153,31 @@ class LEDMatrixDisplayService:
             logging.error(f"Invalid mode {self.current_mode} requested via local trigger.")
         except Exception as e:
             logging.error(f"Error starting mode {self.current_mode} via local trigger: {e}")
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def drop_sand(self):
+        if cherrypy.request.method == 'OPTIONS':
+            # Respond to preflight request
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            cherrypy.response.headers['Access-Control-Max-Age'] = '3600'
+            return ''
+
+        data = cherrypy.request.json or {}
+        x = data.get('x', 32)
+        color = data.get('color', None)
+
+        color_tuple = None
+        if isinstance(color, list) and len(color) == 3:
+            color_tuple = tuple(color)
+
+        # Enqueue the sand pixel
+        from python_server.modes.sand_physics import sand_queue
+        sand_queue.put({"x": x, "color": color_tuple})
+        return {"status": "success", "message": f"Sand pixel queued at column {x}"}
 
     @cherrypy.expose
     @cherrypy.tools.json_out()

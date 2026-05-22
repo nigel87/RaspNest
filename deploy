@@ -8,8 +8,8 @@ DEST_PATH="/home/nigel/RaspNest/"
 
 echo "Deploying ${SOURCE_DIR} to ${DEST_USER}@${DEST_HOST}:${DEST_PATH}"
 
-# Use scp to copy the directory recursively
-scp -r "${SOURCE_DIR}" "${DEST_USER}"@"${DEST_HOST}":"${DEST_PATH}"
+# Use rsync to copy the directory, excluding cache files and folders
+rsync -avz --exclude '__pycache__/' --exclude '*.pyc' --exclude '*.pyo' --exclude '.DS_Store' --exclude '.git/' "${SOURCE_DIR}" "${DEST_USER}"@"${DEST_HOST}":"${DEST_PATH}"
 
 if [ $? -eq 0 ]; then
     echo "Deployment successful!"

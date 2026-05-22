@@ -12,7 +12,7 @@ def get_weather(city, zip_code):
         "units": "metric"  # Use Celsius for temperature
     }
 
-    response = requests.get(WEATHER_BASE_URL, params=params)
+    response = requests.get(WEATHER_BASE_URL, params=params, timeout=5)
 
     if response.status_code == 200:
         data = response.json()
