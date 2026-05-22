@@ -82,10 +82,10 @@ def run(stop_event):
     ]
 
     fg_buildings = [
-        {"x": 4.0, "w": 16, "h": 15, "color": (32, 28, 42), "accent": CYAN},
-        {"x": 26.0, "w": 12, "h": 21, "color": (26, 22, 36), "accent": MAGENTA},
-        {"x": 44.0, "w": 18, "h": 13, "color": (32, 28, 42), "accent": CYAN},
-        {"x": 68.0, "w": 14, "h": 17, "color": (26, 22, 36), "accent": MAGENTA},
+        {"x": 4.0, "w": 20, "h": 13, "color": (25, 20, 35), "accent": CYAN, "type": "colosseum"},
+        {"x": 28.0, "w": 12, "h": 21, "color": (26, 22, 36), "accent": MAGENTA, "type": "standard"},
+        {"x": 46.0, "w": 18, "h": 13, "color": (32, 28, 42), "accent": CYAN, "type": "standard"},
+        {"x": 68.0, "w": 14, "h": 17, "color": (26, 22, 36), "accent": MAGENTA, "type": "roma_sign"},
     ]
 
     # Initialize Rain Particles (used in Rain mode)
@@ -112,12 +112,15 @@ def run(stop_event):
 
     # Initialize Clouds (used in Cloudy mode)
     clouds = [
-        {"x": 5.0, "y": 2.0, "w": 16, "speed": 0.05},
-        {"x": 40.0, "y": 4.0, "w": 20, "speed": 0.03}
+        {"x": 5.0, "y": 2.0, "w": 16, "speed": 0.04},
+        {"x": 22.0, "y": 5.0, "w": 12, "speed": 0.06},
+        {"x": 40.0, "y": 1.0, "w": 18, "speed": 0.03},
+        {"x": 58.0, "y": 4.0, "w": 14, "speed": 0.05}
     ]
 
     last_weather_fetch = 0
     weather_condition = "rain"  # Fallback weather
+    is_day = True # Fallback day status
 
     try:
         while not stop_event.is_set():
@@ -139,55 +142,104 @@ def run(stop_event):
                         else:
                             weather_condition = "rain" # fallback visual
                         logging.info(f"[Cyberpunk Mode] Active weather condition registered: '{weather_condition}'")
+                        
+                        # Detect day/night from weather data
+                        dt = weather_data.get("dt")
+                        sys_data = weather_data.get("sys", {})
+                        sunrise = sys_data.get("sunrise")
+                        sunset = sys_data.get("sunset")
+                        if dt and sunrise and sunset:
+                            is_day = (sunrise <= dt <= sunset)
+                        else:
+                            hour = time.localtime().tm_hour
+                            is_day = (6 <= hour < 20)
                 except Exception as e:
                     logging.warning(f"[Cyberpunk Mode] Failed to fetch weather, using cozy rain fallback: {e}")
                     weather_condition = "rain"
+                    hour = time.localtime().tm_hour
+                    is_day = (6 <= hour < 20)
                 last_weather_fetch = current_time
 
-            # 1. Background sky render
-            if weather_condition == "rain":
-                # Dark rain clouds sky gradient
-                draw.rectangle((0, 0, 63, 31), fill=(5, 3, 15))
-            elif weather_condition == "clear":
-                # Starry night sky gradient
-                draw.rectangle((0, 0, 63, 31), fill=(4, 2, 22))
+            # Fallback update day/night status based on local time if weather service not used
+            if not HAS_WEATHER_SERVICE:
+                hour = time.localtime().tm_hour
+                is_day = (6 <= hour < 20)
+
+            # 1. Background sky render based on day/night and weather conditions
+            if is_day:
+                if weather_condition == "rain":
+                    # Moody rainy day sky (grayish blue-cyan)
+                    draw.rectangle((0, 0, 63, 31), fill=(22, 28, 42))
+                elif weather_condition == "clear":
+                    # Vibrant cyberpunk day sky (bright neon-tinted cyan-blue)
+                    draw.rectangle((0, 0, 63, 31), fill=(15, 75, 120))
+                else:
+                    # Cloudy foggy day sky (misty light blue-gray)
+                    draw.rectangle((0, 0, 63, 31), fill=(35, 50, 75))
             else:
-                # Cloudy foggy sky
-                draw.rectangle((0, 0, 63, 31), fill=(12, 10, 24))
+                if weather_condition == "rain":
+                    # Dark rain clouds sky gradient
+                    draw.rectangle((0, 0, 63, 31), fill=(5, 3, 15))
+                elif weather_condition == "clear":
+                    # Starry night sky gradient
+                    draw.rectangle((0, 0, 63, 31), fill=(4, 2, 22))
+                else:
+                    # Cloudy foggy sky
+                    draw.rectangle((0, 0, 63, 31), fill=(12, 10, 24))
 
-            # 2. Render Sky Elements (Stars, Clouds, Shooting Star)
-            if weather_condition == "clear":
-                # Draw stars
-                t = time.time()
-                for star in stars:
-                    bright = int(100 + 155 * math.sin(t * 4.0 + star["offset"]))
-                    draw.point((star["x"], star["y"]), fill=(bright, bright, int(bright * 0.9)))
-                
-                # Update & Draw Shooting Star
-                if not shooting_star["active"] and random.randint(0, 150) == 1:
-                    shooting_star["active"] = True
-                    shooting_star["x"] = random.randint(0, 30)
-                    shooting_star["y"] = 0
-                
-                if shooting_star["active"]:
-                    sx, sy = int(shooting_star["x"]), int(shooting_star["y"])
-                    # Draw tail
-                    draw.line((sx, sy, sx - 4, sy - 2), fill=LIGHT_GRAY)
-                    draw.point((sx, sy), fill=WHITE)
-                    shooting_star["x"] += shooting_star["vx"]
-                    shooting_star["y"] += shooting_star["vy"]
-                    if shooting_star["x"] > 70 or shooting_star["y"] > 15:
-                        shooting_star["active"] = False
+            # 2. Render Sky Elements (Cyber-Sun, Twinkling Stars, Passing Clouds, Shooting Stars)
+            if is_day:
+                if weather_condition == "clear":
+                    # Draw retro cyber-sun
+                    cx, cy = 46, 8
+                    # Outer glow (soft red-orange)
+                    draw.ellipse((cx - 6, cy - 6, cx + 6, cy + 6), fill=(180, 80, 0))
+                    # Mid ring (bright orange)
+                    draw.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill=(255, 130, 0))
+                    # Bright core (yellowish white)
+                    draw.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=(255, 230, 120))
+            else:
+                if weather_condition == "clear":
+                    # Draw stars
+                    t = time.time()
+                    for star in stars:
+                        bright = int(100 + 155 * math.sin(t * 4.0 + star["offset"]))
+                        draw.point((star["x"], star["y"]), fill=(bright, bright, int(bright * 0.9)))
+                    
+                    # Update & Draw Shooting Star
+                    if not shooting_star["active"] and random.randint(0, 150) == 1:
+                        shooting_star["active"] = True
+                        shooting_star["x"] = random.randint(0, 30)
+                        shooting_star["y"] = 0
+                    
+                    if shooting_star["active"]:
+                        sx, sy = int(shooting_star["x"]), int(shooting_star["y"])
+                        # Draw tail
+                        draw.line((sx, sy, sx - 4, sy - 2), fill=LIGHT_GRAY)
+                        draw.point((sx, sy), fill=WHITE)
+                        shooting_star["x"] += shooting_star["vx"]
+                        shooting_star["y"] += shooting_star["vy"]
+                        if shooting_star["x"] > 70 or shooting_star["y"] > 15:
+                            shooting_star["active"] = False
 
-            elif weather_condition == "clouds":
-                # Draw clouds passing
+            # Draw clouds passing if it is cloudy
+            if weather_condition == "clouds":
                 for cloud in clouds:
                     cx = int(cloud["x"])
                     cy = int(cloud["y"])
                     cw = cloud["w"]
+                    
+                    # Select cloud color based on day/night
+                    if is_day:
+                        c_fill1 = (95, 115, 135)
+                        c_fill2 = (120, 140, 160)
+                    else:
+                        c_fill1 = (40, 35, 60)
+                        c_fill2 = (48, 43, 68)
+                        
                     # Draw cloud bubble shape
-                    draw.ellipse((cx, cy, cx + cw, cy + 5), fill=(40, 35, 60))
-                    draw.ellipse((cx + 3, cy - 2, cx + cw - 3, cy + 4), fill=(48, 43, 68))
+                    draw.ellipse((cx, cy, cx + cw, cy + 5), fill=c_fill1)
+                    draw.ellipse((cx + 3, cy - 2, cx + cw - 3, cy + 4), fill=c_fill2)
                     cloud["x"] += cloud["speed"]
                     if cloud["x"] > 68:
                         cloud["x"] = -cw
@@ -209,7 +261,7 @@ def run(stop_event):
                         if random.random() > 0.6:
                             draw.point((wx, wy), fill=win_color)
 
-            # Foreground Layer Scrolling
+            # Foreground Layer Scrolling & Rendering
             # Pre-compute a 64-column height map of the foreground skyline for rain collision
             heightmap = [31] * 64
 
@@ -217,35 +269,134 @@ def run(stop_event):
                 b["x"] -= 0.25
                 if b["x"] + b["w"] < 0:
                     b["x"] += 80.0
+                    
+                    # Randomize building parameters upon wrapping to make the skyline procedural
+                    rand_val = random.random()
+                    if rand_val < 0.05:
+                        b["type"] = "colosseum"
+                        b["w"] = 20
+                        b["h"] = 13
+                        b["color"] = (25, 20, 35) # Sandstone shadow/fill base
+                    elif rand_val < 0.10:
+                        b["type"] = "roma_sign"
+                        b["w"] = random.randint(14, 18)
+                        b["h"] = random.randint(15, 22)
+                        b["color"] = random.choice([(32, 28, 42), (26, 22, 36)])
+                        b["accent"] = MAGENTA
+                    else:
+                        b["type"] = "standard"
+                        b["w"] = random.randint(12, 18)
+                        b["h"] = random.randint(12, 22)
+                        b["color"] = random.choice([(32, 28, 42), (26, 22, 36)])
+                        b["accent"] = random.choice([CYAN, MAGENTA, NEON_BLUE])
+                
                 bx = int(b["x"])
-                
-                # Draw Building Shadow
-                draw.rectangle((bx, 31 - b["h"], bx + b["w"], 30), fill=b["color"], outline=DARK_GRAY)
-                
-                # Fill heights map
-                start_col = max(0, bx)
-                end_col = min(63, bx + b["w"])
-                top_y = 31 - b["h"]
-                for col in range(start_col, end_col):
-                    if top_y < heightmap[col]:
-                        heightmap[col] = top_y
+                b_type = b.get("type", "standard")
 
-                # Draw glowing windows
-                random.seed(bx + 10)
-                accent = b["accent"]
-                for wx in range(bx + 2, bx + b["w"] - 2, 4):
-                    for wy in range(31 - b["h"] + 3, 29, 5):
-                        if random.random() > 0.4:
-                            # 30% chance window is active neon
-                            w_color = accent if random.random() > 0.7 else (80, 80, 80)
-                            draw.rectangle((wx, wy, wx + 1, wy + 1), fill=w_color)
+                if b_type == "colosseum":
+                    # 1. Fill heights map for Colosseum's stepped roofline
+                    for dx_offset in range(b["w"]):
+                        col = bx + dx_offset
+                        if 0 <= col < 64:
+                            if dx_offset < 8:
+                                top_y = 31 - b["h"]
+                            elif dx_offset < 14:
+                                top_y = 31 - (b["h"] - 2)
+                            else:
+                                top_y = 31 - (b["h"] - 4)
+                            
+                            if top_y < heightmap[col]:
+                                heightmap[col] = top_y
 
-                # Special feature: Add a pulsing neon ad sign "ROMA" on building 2
-                if b["accent"] == MAGENTA and bx >= -20 and bx <= 64:
-                    # Pulsing amber color
-                    pulse_val = int(140 + 115 * math.sin(current_time * 6.0))
-                    ad_color = (pulse_val, int(pulse_val * 0.5), 0)
-                    draw_string_custom(draw, bx - 2, 31 - b["h"] - 7, NEON_AD_SPRITE, ad_color)
+                    # 2. Draw Sandstone Shadow Fill for the sections
+                    # Left section (dx from 0 to 7)
+                    draw.rectangle((bx, 31 - b["h"], bx + 7, 30), fill=(25, 20, 35))
+                    # Middle section (dx from 8 to 13)
+                    draw.rectangle((bx + 8, 31 - (b["h"] - 2), bx + 13, 30), fill=(25, 20, 35))
+                    # Right section (dx from 14 to 19)
+                    draw.rectangle((bx + 14, 31 - (b["h"] - 4), bx + 19, 30), fill=(25, 20, 35))
+
+                    # 3. Draw Sandstone Outlines/Highlights
+                    highlight_color = (180, 150, 110)
+                    # Top outlines
+                    draw.line((bx, 31 - b["h"], bx + 7, 31 - b["h"]), fill=highlight_color)
+                    draw.line((bx + 8, 31 - (b["h"] - 2), bx + 13, 31 - (b["h"] - 2)), fill=highlight_color)
+                    draw.line((bx + 14, 31 - (b["h"] - 4), bx + 19, 31 - (b["h"] - 4)), fill=highlight_color)
+
+                    # Step vertical lines
+                    draw.line((bx + 8, 31 - b["h"], bx + 8, 31 - (b["h"] - 2)), fill=highlight_color)
+                    draw.line((bx + 14, 31 - (b["h"] - 2), bx + 14, 31 - (b["h"] - 4)), fill=highlight_color)
+
+                    # Left and right outer walls
+                    draw.line((bx, 31 - b["h"], bx, 30), fill=highlight_color)
+                    draw.line((bx + 19, 31 - (b["h"] - 4), bx + 19, 30), fill=highlight_color)
+
+                    # 4. Draw Arches, Torches, and Neons
+                    # Bottom tier arches (at dx = 2, 6, 10, 14, 17)
+                    bottom_arch_dxs = [2, 6, 10, 14, 17]
+                    for dx in bottom_arch_dxs:
+                        ax = bx + dx
+                        # Fill arch interior with dark shadow
+                        draw.rectangle((ax, 26, ax + 1, 29), fill=(10, 8, 20))
+                        # Highlight arch frame with slightly lighter sandstone/gray
+                        draw.point((ax, 25), fill=(80, 70, 55))
+                        draw.point((ax + 1, 25), fill=(80, 70, 55))
+                        
+                        # Glowing amber torch inside the arch (pulsing flame)
+                        torch_pulse = int(180 + 75 * math.sin(current_time * 8.0 + dx))
+                        torch_color = (torch_pulse, int(torch_pulse * 0.55), 0)
+                        # We use a semi-random but stable choice for which pixel lights up
+                        draw.point((ax + (1 if (int(current_time * 4) + dx) % 2 == 0 else 0), 27), fill=torch_color)
+
+                    # Top tier arches (where they fit: dx = 2, 6, 10)
+                    top_arch_specs = [
+                        {"dx": 2, "y1": 21, "y2": 24},
+                        {"dx": 6, "y1": 21, "y2": 24},
+                        {"dx": 10, "y1": 22, "y2": 24}
+                    ]
+                    for spec in top_arch_specs:
+                        dx = spec["dx"]
+                        y1 = spec["y1"]
+                        y2 = spec["y2"]
+                        ax = bx + dx
+                        # Fill top arch interior
+                        draw.rectangle((ax, y1, ax + 1, y2), fill=(10, 8, 20))
+                        # Glowing cyan neon
+                        neon_pulse = int(180 + 75 * math.sin(current_time * 5.0 + dx))
+                        neon_color = (0, neon_pulse, neon_pulse)
+                        draw.point((ax + 1, y1 + 1), fill=neon_color)
+
+                else:
+                    # standard or roma_sign
+                    # Draw Building Shadow
+                    draw.rectangle((bx, 31 - b["h"], bx + b["w"], 30), fill=b["color"], outline=DARK_GRAY)
+                    
+                    # Fill heights map
+                    start_col = max(0, bx)
+                    end_col = min(63, bx + b["w"])
+                    top_y = 31 - b["h"]
+                    for col in range(start_col, end_col):
+                        if top_y < heightmap[col]:
+                            heightmap[col] = top_y
+
+                    # Draw glowing windows
+                    random.seed(bx + 10)
+                    accent = b.get("accent", CYAN)
+                    for wx in range(bx + 2, bx + b["w"] - 2, 4):
+                        for wy in range(31 - b["h"] + 3, 29, 5):
+                            if random.random() > 0.4:
+                                # 30% chance window is active neon
+                                w_color = accent if random.random() > 0.7 else (80, 80, 80)
+                                draw.rectangle((wx, wy, wx + 1, wy + 1), fill=w_color)
+
+                    # ROMA sign
+                    if b_type == "roma_sign" and bx >= -22 and bx <= 64:
+                        # Center the sign on top of the building
+                        sign_x = bx + (b["w"] - 22) // 2
+                        # Pulsing orange-amber color
+                        pulse_val = int(140 + 115 * math.sin(current_time * 6.0))
+                        ad_color = (pulse_val, int(pulse_val * 0.5), 0)
+                        draw_string_custom(draw, sign_x, 31 - b["h"] - 7, NEON_AD_SPRITE, ad_color)
 
             # Draw Ground Line (Horizon overlay at the bottom)
             draw.line((0, 31, 63, 31), fill=DARK_GRAY)
