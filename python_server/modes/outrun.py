@@ -83,8 +83,8 @@ def run(stop_event):
             "offset": random.random() * math.pi
         })
 
-    # Perspective horizontal line y-positions
-    y_lines = [17.0, 18.5, 20.5, 23.0, 26.5, 31.0]
+    # Roadside perspective scaling objects (trees and buildings)
+    roadside_objects = []
 
     # Main animation loop
     try:
@@ -99,29 +99,17 @@ def run(stop_event):
                 star_color = (brightness, brightness, int(brightness * 1.1))
                 draw.point((star["x"], star["y"]), fill=star_color)
 
-            # 3. Draw Sliced Retro Sunset
+            # 3. Draw Solid Retro Sunset (Clipped at the horizon y = 16 for a clean look)
             # Sun Center: (32, 13), radius: 10
             sun_cx, sun_cy = 32, 13
             sun_r = 10
             for sy in range(sun_cy - sun_r, sun_cy + sun_r + 1):
+                if sy >= 16:
+                    continue  # Clip the bottom of the sun to sit perfectly behind the horizon
+                
                 # Calculate horizontal span of the circle at this y
                 dy = abs(sy - sun_cy)
                 dx = int(math.sqrt(max(0, sun_r*sun_r - dy*dy)))
-                
-                # Check for retro sliced scanlines (skip lines with increasing thickness at the bottom)
-                # Horizon is at y = 17, so lines closer to 17 have thicker black bars
-                slice_gap = False
-                if sy == 16:
-                    slice_gap = True
-                elif sy == 14:
-                    slice_gap = True
-                elif sy == 11:
-                    slice_gap = True
-                elif sy == 7:
-                    slice_gap = True
-
-                if slice_gap:
-                    continue
 
                 # Calculate color gradient (yellow at top, magenta/red at bottom)
                 ratio = (sy - (sun_cy - sun_r)) / (2.0 * sun_r)
@@ -131,10 +119,7 @@ def run(stop_event):
                 b = int(SUN_YELLOW[2] + ratio * (SUN_RED[2] - SUN_YELLOW[2]))
                 draw.line((sun_cx - dx, sy, sun_cx + dx, sy), fill=(r, g, b))
 
-            # 4. Draw Neon Perspective Grid Lines
-            # Horizon line (solid neon pink separator at y = 16)
-            draw.line((0, 16, 63, 16), fill=NEON_PINK)
-
+            # 4. Draw Neon Perspective Grid Lines (Horizon line separator removed for seamless layout)
             # Draw vertical converging lines
             # Vanishing point is at (32, 16)
             grid_cols = [0, 8, 16, 24, 32, 40, 48, 56, 64]
@@ -142,16 +127,95 @@ def run(stop_event):
                 # Interpolate from horizon level (y=16) to bottom (y=31)
                 draw.line((32, 16, bx, 31), fill=NEON_PURPLE)
 
-            # Update and draw horizontal scrolling lines (accelerating towards bottom)
-            for i in range(len(y_lines)):
-                # Accelerate vertical displacement based on distance from horizon (16.0)
-                y_lines[i] += 0.08 * (y_lines[i] - 15.5)
-                # Wrap line if it goes past the matrix height (31)
-                if y_lines[i] > 31.0:
-                    y_lines[i] = 17.0
-
-                # Render horizontal grid line
-                draw.line((0, int(y_lines[i]), 63, int(y_lines[i])), fill=NEON_PURPLE)
+            # 4b. Spawn, Update and Draw 3D Perspective Roadside Objects (Trees and Buildings)
+            if len(roadside_objects) < 3 and random.random() < 0.15:
+                can_spawn = True
+                if roadside_objects:
+                    last_obj = roadside_objects[-1]
+                    if last_obj["z"] > 0.75:
+                        can_spawn = False
+                if can_spawn:
+                    roadside_objects.append({
+                        "side": random.choice(["left", "right"]),
+                        "type": random.choice(["tree", "building"]),
+                        "z": 1.0,
+                        "color_theme": random.choice(["cyan", "magenta"])
+                    })
+            
+            # Sort back-to-front so closer objects overlap distant ones correctly
+            roadside_objects.sort(key=lambda o: o["z"], reverse=True)
+            
+            next_objects = []
+            for obj in roadside_objects:
+                obj["z"] -= 0.045  # Speed of approaching objects
+                if obj["z"] <= 0.08:
+                    continue  # Passed the viewer, recycle
+                
+                z = obj["z"]
+                progress = 1.0 - z
+                
+                if obj["side"] == "left":
+                    cx = int(32 - 34 * progress)
+                else:
+                    cx = int(32 + 34 * progress)
+                    
+                cy = int(16 + 15 * progress)
+                
+                # Scale coordinates dynamically based on 3D depth
+                h = int(2 + 12 * progress)
+                w = int(1 + 7 * progress)
+                
+                if cx < -10 or cx > 74 or cy > 32:
+                    continue
+                
+                if obj["type"] == "tree":
+                    trunk_color = NEON_PINK if obj["color_theme"] == "magenta" else (180, 0, 255)
+                    leaf_color = CYAN if obj["color_theme"] == "cyan" else (0, 255, 80)
+                    
+                    # Draw curves trunk
+                    for i in range(h):
+                        ty = cy - i
+                        tx = cx - int(math.sin(i / max(1, h) * 1.5) * (w / 3.0))
+                        if 0 <= tx < 64 and 0 <= ty < 32:
+                            draw.point((tx, ty), fill=trunk_color)
+                            
+                    # Draw leaves spread
+                    top_y = cy - h
+                    top_x = cx - int(math.sin(1.5) * (w / 3.0))
+                    if w >= 2:
+                        half_w = max(1, w // 2)
+                        for lx in range(top_x - half_w, top_x + half_w + 1):
+                            if 0 <= lx < 64 and 0 <= top_y < 32:
+                                draw.point((lx, top_y), fill=leaf_color)
+                        for ly in range(top_y - half_w // 2, top_y + half_w // 2 + 1):
+                            if 0 <= top_x < 64 and 0 <= ly < 32:
+                                draw.point((top_x, ly), fill=leaf_color)
+                else:
+                    # Draw perspective skyscraper building
+                    building_color = (12, 8, 30)
+                    border_color = CYAN if obj["color_theme"] == "cyan" else NEON_PINK
+                    
+                    bx1 = cx - w // 2
+                    bx2 = cx + w // 2
+                    by1 = cy - h
+                    by2 = cy
+                    
+                    draw.rectangle((bx1, by1, bx2, by2), fill=building_color, outline=border_color)
+                    
+                    # Sparse glowing windows
+                    if w >= 4 and h >= 6:
+                        win_y = cy - h // 2
+                        if 0 <= cx < 64 and 0 <= win_y < 32:
+                            draw.point((cx, win_y), fill=(255, 220, 0))
+                        if w >= 6 and h >= 8:
+                            win_y2 = cy - h // 3
+                            if 0 <= cx - 1 < 64 and 0 <= win_y2 < 32:
+                                draw.point((cx - 1, win_y2), fill=(255, 220, 0))
+                            if 0 <= cx + 1 < 64 and 0 <= win_y2 < 32:
+                                draw.point((cx + 1, win_y2), fill=(255, 220, 0))
+                                
+                next_objects.append(obj)
+            roadside_objects = next_objects
 
             # 5. Draw Swaying Arcade Sports Car
             car_x = 26 + int(math.sin(t * 3.0) * 8.0) # Sway left and right
