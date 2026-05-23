@@ -60,4 +60,5 @@ STOCK_CACHE_FILE = "/var/weather/stock_data_cache.json"
 # --- Google Nest Speaker Configurations ---
 GOOGLE_NEST_MINI_NAME = "Nest mini"
 AUTO_RESUME_MODE = 8  # Dynamic main menu mode
-TEMP_ALBUM_ART_PATH = "/tmp/raspnest_album_art.jpg"
+import getpass
+TEMP_ALBUM_ART_PATH = f"/tmp/raspnest_album_art_{getpass.getuser()}.jpg"

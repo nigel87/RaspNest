@@ -5,17 +5,22 @@ import requests
 import pychromecast
 from python_server.shared.constants import GOOGLE_NEST_MINI_NAME, AUTO_RESUME_MODE, TEMP_ALBUM_ART_PATH
 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 def download_album_art(url):
     """
     Downloads album art from the given URL and saves it to a local temporary path.
+    Bypasses SSL verification (verify=False) to ensure reliability in systemd/root environments.
     """
     try:
         logging.info(f"Downloading YouTube Music album art from: {url}")
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=5, verify=False)
         if response.status_code == 200:
             with open(TEMP_ALBUM_ART_PATH, 'wb') as f:
                 f.write(response.content)
-            logging.info(f"Album art downloaded successfully to: {TEMP_ALBUM_ART_PATH}")
+            import os
+            logging.info(f"Album art downloaded successfully to: {TEMP_ALBUM_ART_PATH} (Size: {os.path.getsize(TEMP_ALBUM_ART_PATH)} bytes)")
             return TEMP_ALBUM_ART_PATH
         else:
             logging.warning(f"Failed to download album art. HTTP status code: {response.status_code}")

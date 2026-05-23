@@ -74,6 +74,11 @@ class LEDMatrixDisplayService:
         mode = data.get('mode', None)  # No default mode here to allow cycling
         text = data.get('text', 'Hello, World!')  # Default text
 
+        # If no mode is specified, redirect to the smart contextual action button logic immediately.
+        # This prevents stopping the thread (and clearing the scrolling news state) prematurely!
+        if mode is None:
+            return self.action_button()
+
         # Signal the current thread to stop and wait for it to finish
         if self.current_thread and self.current_thread.is_alive():
             self.stop_event.set()
@@ -84,11 +89,7 @@ class LEDMatrixDisplayService:
         # Reset the stop event for the new mode
         self.stop_event.clear()
 
-        # If no mode is specified, redirect to the smart contextual action button logic
-        if mode is None:
-            return self.action_button()
-        else:
-            mode = int(mode)
+        mode = int(mode)
 
         # Run the corresponding mode using the dictionary
         try:

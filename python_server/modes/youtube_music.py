@@ -19,7 +19,15 @@ def run(song_title, artist, album_art_path, stop_event):
 
     while not stop_event.is_set():
         # --- PHASE 1: Render the Album Art ---
-        if album_art_path and os.path.exists(album_art_path):
+        if album_art_path:
+            exists = os.path.exists(album_art_path)
+            size = os.path.getsize(album_art_path) if exists else 0
+            logging.info(f"[YTMUSIC] Checking album art path: {album_art_path} (Exists: {exists}, Size: {size} bytes)")
+        else:
+            logging.warning("[YTMUSIC] Album art path is None or Empty.")
+            exists = False
+
+        if exists:
             logging.info(f"Showing album art for {song_title}")
             
             # Command to display the album art centered (-C), showing it for 6 seconds (-w 6)
@@ -36,7 +44,8 @@ def run(song_title, artist, album_art_path, stop_event):
             
             process = None
             try:
-                process = subprocess.Popen(cmd)
+                logging.info(f"[YTMUSIC] Launching process: {' '.join(cmd)}")
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 
                 # Wait for 6 seconds or until stop_event is set
                 start_time = time.time()
@@ -52,7 +61,14 @@ def run(song_title, artist, album_art_path, stop_event):
                     if process.poll() is None:
                         process.terminate()
                         process.wait()
-                    logging.info("Album art display process stopped.")
+                    stdout, stderr = process.communicate()
+                    if stdout:
+                        logging.info(f"[YTMUSIC] C++ viewer stdout: {stdout.strip()}")
+                    if stderr:
+                        logging.error(f"[YTMUSIC] C++ viewer stderr: {stderr.strip()}")
+                    logging.info(f"Album art display process stopped with exit code: {process.returncode}")
+        else:
+            logging.warning(f"[YTMUSIC] Skipping Phase 1: Album art file does not exist at '{album_art_path}'")
                     
         if stop_event.is_set():
             break
