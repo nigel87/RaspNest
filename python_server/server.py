@@ -84,10 +84,9 @@ class LEDMatrixDisplayService:
         # Reset the stop event for the new mode
         self.stop_event.clear()
 
-        # If no mode is specified, cycle to the next mode
+        # If no mode is specified, redirect to the smart contextual action button logic
         if mode is None:
-            self.current_mode = (self.current_mode + 1) % TOTAL_NUMBER_OF_MODES
-            mode = self.current_mode
+            return self.action_button()
         else:
             mode = int(mode)
 
@@ -132,6 +131,12 @@ class LEDMatrixDisplayService:
             stop_clock()
 
         self.stop_event.clear()
+        
+        if int(mode_id) == -1:
+            logging.info("Display turned off successfully (stopping all active controllers).")
+            self.current_mode = -1
+            return
+
         self.current_mode = int(mode_id)
 
         try:
@@ -198,6 +203,117 @@ class LEDMatrixDisplayService:
         return {"status": "success", "message": "Fish food dropped!"}
 
     @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def action_button(self):
+        if cherrypy.request.method == 'OPTIONS':
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            return ''
+
+        # Read the current context from state
+        from python_server.shared import state
+        is_news = False
+        active_news = None
+        with state.state_lock:
+            is_news = state.is_news_scrolling
+            if state.current_news_entry:
+                active_news = dict(state.current_news_entry)
+
+        # 1. Context: News is scrolling in Main mode (mode 8)
+        if self.current_mode == 8 and is_news and active_news:
+            logging.info(f"Context Action: Displaying full details for news: '{active_news['title']}'")
+            
+            # Stop the Main mode thread
+            if self.current_thread and self.current_thread.is_alive():
+                self.stop_event.set()
+                self.current_thread.join()
+                stop_scrolling_text()
+                stop_clock()
+
+            self.stop_event.clear()
+
+            # Clean HTML from RSS summary
+            import re
+            def clean_html(raw_html):
+                cleanr = re.compile('<.*?>')
+                cleantext = re.sub(cleanr, '', raw_html)
+                cleantext = re.sub(r'\s+', ' ', cleantext).strip()
+                return cleantext
+
+            summary_clean = clean_html(active_news.get("summary", ""))
+            if summary_clean:
+                detail_text = f"{active_news['title']} -- {summary_clean}"
+            else:
+                detail_text = active_news['title']
+
+            if len(detail_text) > 300:
+                detail_text = detail_text[:300] + "..."
+
+            # Function to scroll details twice
+            def scroll_details_twice(text, stop_event):
+                # Run clock with scrolling text twice
+                for _ in range(2):
+                    if stop_event.is_set():
+                        break
+                    run_clock_with_scrolling_text(text, GREEN, GOLD, stop_event)
+
+                # Automatically resume Main mode
+                if not stop_event.is_set():
+                    logging.info("Details scrolling finished. Auto-resuming Main mode.")
+                    self.trigger_mode_change(8)
+
+            # Start detail scroller thread
+            self.current_thread = threading.Thread(
+                target=scroll_details_twice,
+                args=(detail_text, self.stop_event),
+                daemon=True
+            )
+            self.current_thread.start()
+            return {"message": "News details started scrolling", "context": "news_details"}
+
+        # 2. Context: Favorites cycling (Main mode [8] -> ATAC bus [11] -> Aquarium [16])
+        favorites = [8, 11, 16]
+        if self.current_mode not in favorites:
+            next_mode = 8
+        else:
+            idx = favorites.index(self.current_mode)
+            next_mode = favorites[(idx + 1) % len(favorites)]
+
+        logging.info(f"Cycling from mode {self.current_mode} to next favorite: {next_mode}")
+        self.trigger_mode_change(next_mode)
+        mode_name = MODES[next_mode]["name"]
+        return {"message": f"Started {mode_name}", "context": "favorite_cycle", "mode": next_mode}
+
+    def night_mode_monitor(self):
+        logging.info("Night mode background monitor started.")
+        last_checked_hour = -1
+        while True:
+            try:
+                now = time.localtime()
+                current_hour = now.tm_hour
+                
+                if current_hour != last_checked_hour:
+                    # Transition to Midnight (Turn display OFF)
+                    if current_hour == 0:
+                        logging.info("Midnight reached. Activating automatic Night Mode (turning off display).")
+                        self.trigger_mode_change(-1)
+                        last_checked_hour = current_hour
+                    # Transition to 07:00 AM (Turn display ON in Main mode)
+                    elif current_hour == 7:
+                        logging.info("07:00 reached. Deactivating Night Mode (starting Main mode).")
+                        self.trigger_mode_change(8)
+                        last_checked_hour = current_hour
+                    else:
+                        last_checked_hour = current_hour
+
+                time.sleep(30)
+            except Exception as e:
+                logging.error(f"Error in night_mode_monitor: {e}")
+                time.sleep(30)
+
+    @cherrypy.expose
     @cherrypy.tools.json_out()
     def list_assets(self):
         assets_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../assets'))
@@ -236,6 +352,14 @@ if __name__ == '__main__':
         nest_music_monitor.start_monitoring(service)
     except Exception as e:
         logging.error(f"Failed to start Nest Music Monitor discovery: {e}")
+
+    # Start the Night Mode background daemon
+    try:
+        night_thread = threading.Thread(target=service.night_mode_monitor, daemon=True)
+        night_thread.start()
+        logging.info("Night Mode background daemon started successfully.")
+    except Exception as e:
+        logging.error(f"Failed to start Night Mode monitor daemon: {e}")
         
     cherrypy.quickstart(service, '/', {
         '/': {

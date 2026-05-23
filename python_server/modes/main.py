@@ -50,7 +50,19 @@ def run(stop_event):
                     if entry_title not in displayed_news:
                         # Display the new news title
                         new_news_found = True
-                        display_new_news_three_times(entry_title, stop_event)
+                        from python_server.shared import state
+                        with state.state_lock:
+                            state.is_news_scrolling = True
+                            state.current_news_entry = {
+                                "title": entry.title,
+                                "summary": entry.get("summary", entry.get("description", ""))
+                            }
+                        try:
+                            display_new_news_three_times(entry_title, stop_event)
+                        finally:
+                            with state.state_lock:
+                                state.is_news_scrolling = False
+                                state.current_news_entry = None
 
                         # Mark this title as displayed
                         displayed_news.add(entry_title)
