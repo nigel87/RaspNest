@@ -101,7 +101,7 @@ class LEDMatrixDisplayService:
                     image_path = os.path.join("../assets", text)
                 else:
                     image_path = "../assets/gif/Fireplace.gif" # Default image
-                run_args.append(image_path)
+                run_args = [image_path]
             elif mode == 10: # Special handling for YouTube Music mode
                 artist = data.get('artist', 'Unknown Artist')
                 image_path = data.get('image_path', TEMP_ALBUM_ART_PATH)
@@ -361,6 +361,13 @@ if __name__ == '__main__':
         logging.info("Night Mode background daemon started successfully.")
     except Exception as e:
         logging.error(f"Failed to start Night Mode monitor daemon: {e}")
+        
+    # Auto-start Main mode (mode 8) on startup
+    try:
+        service.trigger_mode_change(8)
+        logging.info("Auto-started Main mode (mode 8) successfully at server launch.")
+    except Exception as e:
+        logging.error(f"Failed to auto-start Main mode at launch: {e}")
         
     cherrypy.quickstart(service, '/', {
         '/': {
