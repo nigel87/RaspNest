@@ -91,7 +91,7 @@ def display_new_news_three_times(entry_title, stop_event):
 
 def stop_clock():
     try:
-        subprocess.run(["pkill", "-2", "clock"])
+        subprocess.run(["sudo", "pkill", "-2", "-f", "clock"])
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 

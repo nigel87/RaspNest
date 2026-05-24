@@ -104,11 +104,11 @@ def display_on_matrix(title, colour, stop_event):
 
 def stop_scrolling_text():
     try:
-        # Send SIGINT signal to stop the scrolling text or clock with scrolling text
-        # Use pkill -f to match the full command line for processes with long names
-        subprocess.run(["pkill", "-2", "-f", "clock_with_scrolling_text"])
-        subprocess.run(["pkill", "-2", "-f", "text-scroller"])
-        subprocess.run(["pkill", "-2", "-f", "clock"])
+        # Send SIGINT signal as root to cleanly stop the C++ binaries running with sudo
+        subprocess.run(["sudo", "pkill", "-2", "-f", "clock_with_scrolling_text"])
+        subprocess.run(["sudo", "pkill", "-2", "-f", "text-scroller"])
+        subprocess.run(["sudo", "pkill", "-2", "-f", "clock"])
+        subprocess.run(["sudo", "pkill", "-2", "-f", "dashboard"])
     except subprocess.CalledProcessError:
         pass  # Handle any errors if needed
 
