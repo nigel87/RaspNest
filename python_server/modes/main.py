@@ -84,6 +84,8 @@ def run(stop_event):
 
 def display_new_news_three_times(entry_title, stop_event):
     for i in range(3):
+        if stop_event.is_set():
+            break
         run_clock_with_scrolling_text(entry_title, GREEN, GOLD, stop_event)
 
 

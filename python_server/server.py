@@ -10,7 +10,7 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
 from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics, aquarium
-from python_server.shared.controller.matrix_controller import stop_scrolling_text
+from python_server.shared.controller.matrix_controller import stop_scrolling_text, run_clock_with_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
 from python_server.shared.service import nest_music_monitor
