@@ -78,6 +78,13 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  // Load a dedicated larger font for the weather (5x8) for better legibility
+  rgb_matrix::Font weather_font;
+  bool has_weather_font = weather_font.LoadFont("../fonts/5x8.bdf");
+  if (!has_weather_font) {
+    fprintf(stderr, "Warning: Couldn't load weather font '../fonts/5x8.bdf', falling back to widget font\n");
+  }
+
   RGBMatrix *matrix = RGBMatrix::CreateFromOptions(matrix_options, runtime_opt);
   if (matrix == NULL) return 1;
 
@@ -103,6 +110,8 @@ int main(int argc, char *argv[]) {
   Color bl_color(0, 255, 255);       // Cyan
   std::string bottom_right = "BTC +2.4%";
   Color br_color(0, 255, 0);         // Green
+  std::string bus_pred = "ND";
+  Color bus_color(150, 150, 150);     // Grey
 
   time_t last_file_read = 0;
 
@@ -114,12 +123,14 @@ int main(int argc, char *argv[]) {
     if (now_time - last_file_read >= 1) {
       std::ifstream file(input_file);
       if (file.is_open()) {
-        std::string line_temp, line_bl, line_bl_col, line_br, line_br_col;
+        std::string line_temp, line_bl, line_bl_col, line_br, line_br_col, line_bus_pred, line_bus_col;
         if (std::getline(file, line_temp)) temp = line_temp;
         if (std::getline(file, line_bl)) bottom_left = line_bl;
         if (std::getline(file, line_bl_col)) parseColor(&bl_color, line_bl_col);
         if (std::getline(file, line_br)) bottom_right = line_br;
         if (std::getline(file, line_br_col)) parseColor(&br_color, line_br_col);
+        if (std::getline(file, line_bus_pred)) bus_pred = line_bus_pred;
+        if (std::getline(file, line_bus_col)) parseColor(&bus_color, line_bus_col);
       }
       last_file_read = now_time;
     }
@@ -133,16 +144,38 @@ int main(int argc, char *argv[]) {
 
     // 3. Render Temp/Weather at top-right
     // Align right: matrix->width() - text_width - margin
+    rgb_matrix::Font &w_font = has_weather_font ? weather_font : widget_font;
     int temp_width = 0;
     for (const char* c = temp.c_str(); *c; ++c) {
-      temp_width += widget_font.CharacterWidth(*c);
+      temp_width += w_font.CharacterWidth(*c);
     }
     int temp_x = matrix->width() - temp_width - 2;
-    rgb_matrix::DrawText(offscreen, widget_font, temp_x, clock_y - 2, temp_color, NULL, temp.c_str(), 0);
+    rgb_matrix::DrawText(offscreen, w_font, temp_x, clock_y - 2, temp_color, NULL, temp.c_str(), 0);
 
     // 4. Render Dotted Separator Line
     for (int x = 1; x < matrix->width() - 1; x += 2) {
       offscreen->SetPixel(x, divider_y, divider_color.r, divider_color.g, divider_color.b);
+    }
+
+    // 4.5. Render Bus 409 top widget aligned with weather
+    if (!bus_pred.empty()) {
+      int clock_width = 0;
+      for (const char* c = time_text; *c; ++c) {
+        clock_width += clock_font.CharacterWidth(*c);
+      }
+      int start_x = 2 + clock_width;
+
+      int end_x = temp_x;
+      int mid_x = start_x + (end_x - start_x) / 2;
+
+      int pred_width = 0;
+      for (const char* c = bus_pred.c_str(); *c; ++c) {
+        pred_width += widget_font.CharacterWidth(*c);
+      }
+      int x_pred = mid_x - pred_width / 2;
+      if (x_pred < start_x + 1) x_pred = start_x + 1;
+      
+      rgb_matrix::DrawText(offscreen, widget_font, x_pred, clock_y - 2, bus_color, NULL, bus_pred.c_str(), 0);
     }
 
     // 5. Render Bottom-Left Widget

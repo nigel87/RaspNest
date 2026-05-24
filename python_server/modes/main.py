@@ -18,7 +18,7 @@ BBC_RSS_FEED_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
 STOCKS_TO_TRACK = ["GOOG", "SXR9.DE", "BTC-USD"]
 displayed_news = set()
 
-def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color):
+def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bus_pred="ND", bus_color="150,150,150"):
     """
     Writes the static dashboard details to the plain text file.
     The C++ dashboard binary reads this file dynamically every 1s to update the display.
@@ -27,10 +27,11 @@ def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color):
         # Ensure the directory exists
         os.makedirs(os.path.dirname(DASHBOARD_DATA_FILE), exist_ok=True)
         
-        # Truncate strings to fit perfectly on the 64x32 matrix without overlap
+        # Clean and limit string size to matrix bounds
         temp_clean = temp[:6]
         bl_clean = bottom_left[:8]
         br_clean = bottom_right[:8]
+        bus_clean = bus_pred[:5]
         
         with open(DASHBOARD_DATA_FILE, "w") as file:
             file.write(f"{temp_clean}\n")
@@ -38,6 +39,8 @@ def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color):
             file.write(f"{bl_color}\n")
             file.write(f"{br_clean}\n")
             file.write(f"{br_color}\n")
+            file.write(f"{bus_clean}\n")
+            file.write(f"{bus_color}\n")
     except Exception as e:
         logging.error(f"[Main Features] Failed to write dashboard data: {e}")
 
@@ -49,14 +52,18 @@ def run(stop_event):
     """
     logging.info("[Main Features] Starting Feature-Rich Static Dashboard Mode...")
     
+    # Initialize top widget bus 409 cache
+    cached_bus_pred = "ND"
+    cached_bus_color = "150,150,150"
+    
     # 1. Gather initial data and write to file
     from python_server.shared.service.weather_service import get_weather_rome
     try:
-        temp = str(get_weather_rome()["main"]["temp"]) + "°C"
+        temp = f"{round(get_weather_rome()['main']['temp'])}C"
     except Exception:
-        temp = "--°C"
+        temp = "--C"
         
-    write_dashboard_data(temp, "Caricam.", CYAN, "Attend.", GREEN)
+    write_dashboard_data(temp, "Caricam.", CYAN, "Attend.", GREEN, cached_bus_pred, cached_bus_color)
 
     # 2. Populate initial RSS news to only trigger flashes for *new* news
     rss_feeds = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
@@ -92,8 +99,8 @@ def run(stop_event):
 
     # Cycle state variables
     last_weather_fetch = 0
+    last_atac_fetch = 0
     last_widget_rotate = 0
-    current_pane = 0  # 0: Calendar + Stocks, 1: ATAC Bus Arrivals, 2: Priority News
 
     temp_cache = temp
     stock_idx = 0
@@ -104,10 +111,48 @@ def run(stop_event):
         # A. Fetch Weather every 10 minutes
         if current_time - last_weather_fetch >= 600:
             try:
-                temp_cache = str(get_weather_rome()["main"]["temp"]) + "°C"
+                temp_cache = f"{round(get_weather_rome()['main']['temp'])}C"
                 last_weather_fetch = current_time
             except Exception as e:
                 logging.error(f"[Main Features] Failed to fetch weather: {e}")
+
+        # A.5. Fetch ATAC 409 prediction for top widget every 30 seconds
+        if current_time - last_atac_fetch >= 30:
+            try:
+                stop_name, arrivals = fetch_atac_arrivals("74029")
+                found_409 = False
+                if arrivals:
+                    for arr in arrivals:
+                        if arr['line'] == "409":
+                            pred_text = arr['prediction']
+                            if "Nessun" in pred_text or "nessun" in pred_text:
+                                cached_bus_pred = "ND"
+                                cached_bus_color = "150,150,150"
+                            else:
+                                pred = pred_text.split()[0]
+                                if pred == "a": # "a tempo" -> 0'
+                                    cached_bus_pred = "0'"
+                                    cached_bus_color = "255,0,0" # Red
+                                elif pred.isdigit():
+                                    mins = int(pred)
+                                    cached_bus_pred = f"{mins}'"
+                                    if mins <= 5:
+                                        cached_bus_color = "255,0,0" # Red
+                                    elif mins <= 12:
+                                        cached_bus_color = "255,140,0" # Orange
+                                    else:
+                                        cached_bus_color = "0,255,0" # Green
+                                else:
+                                    cached_bus_pred = f"{pred}'"
+                                    cached_bus_color = "255,140,0" # Orange
+                            found_409 = True
+                            break
+                if not found_409:
+                    cached_bus_pred = "ND"
+                    cached_bus_color = "150,150,150"
+                last_atac_fetch = current_time
+            except Exception as e:
+                logging.error(f"[Main Features] Failed to fetch ATAC for top widget: {e}")
 
         # B. Check for priority news flashes (Interrupts current flow)
         new_headline = None
@@ -129,71 +174,42 @@ def run(stop_event):
         if new_headline:
             logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")
             # Alert flash on the bottom riquadro for 10 seconds
-            write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD)
+            write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD, cached_bus_pred, cached_bus_color)
             time.sleep(10)
             continue
 
-        # C. Rotate Widgets Pane every 5 seconds
-        if current_time - last_widget_rotate >= 5.0:
-            current_pane = (current_pane + 1) % 2  # Toggle between Calendar/Stocks and ATAC arrivals
+        # C. Rotate Stocks on the bottom row every 5 seconds (Persistent Calendar + Stocks)
+        if current_time - last_widget_rotate >= 5.0 or last_widget_rotate == 0:
             last_widget_rotate = current_time
 
-            if current_pane == 0:
-                # --- PANE 1: Calendar (Left) & Stocks (Right) ---
-                bl_text = "Nessuno"
-                bl_color = CYAN
-                try:
-                    event = get_next_calendar_event()
-                    if event:
-                        bl_text = f"{event['time']} {event['title']}"
-                except Exception:
-                    pass
+            # --- Bottom row: Calendar (Left) & Stocks (Right) ---
+            bl_text = "Nessuno"
+            bl_color = CYAN
+            try:
+                event = get_next_calendar_event()
+                if event:
+                    bl_text = f"{event['time']} {event['title']}"
+            except Exception:
+                pass
 
-                br_text = ""
-                br_color = GREEN
-                try:
-                    # Pick a stock dynamically from the list
-                    symbol = STOCKS_TO_TRACK[stock_idx]
-                    change = get_daily_price_change(symbol)
-                    display_symbol = symbol.split(".")[0].split("-")[0]
-                    if change is not None:
-                        sign = "+" if change >= 0 else ""
-                        br_text = f"{display_symbol}{sign}{change:.1f}%"
-                        br_color = GREEN if change >= 0 else RED
-                    else:
-                        br_text = f"{display_symbol} --"
-                    stock_idx = (stock_idx + 1) % len(STOCKS_TO_TRACK)
-                except Exception:
-                    br_text = "Stocks"
+            br_text = ""
+            br_color = GREEN
+            try:
+                # Pick a stock dynamically from the list
+                symbol = STOCKS_TO_TRACK[stock_idx]
+                change = get_daily_price_change(symbol)
+                display_symbol = symbol.split(".")[0].split("-")[0]
+                if change is not None:
+                    sign = "+" if change >= 0 else ""
+                    br_text = f"{display_symbol}{sign}{change:.1f}%"
+                    br_color = GREEN if change >= 0 else RED
+                else:
+                    br_text = f"{display_symbol} --"
+                stock_idx = (stock_idx + 1) % len(STOCKS_TO_TRACK)
+            except Exception:
+                br_text = "Stocks"
 
-                write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color)
-
-            elif current_pane == 1:
-                # --- PANE 2: ATAC Arrivals ---
-                bl_text = "ATAC 74029"
-                bl_color = GOLD
-                br_text = "--"
-                br_color = GOLD
-                try:
-                    stop_name, arrivals = fetch_atac_arrivals("74029")
-                    if arrivals:
-                        # Display up to 2 lines
-                        if len(arrivals) >= 1:
-                            bl_text = f"{arrivals[0]['line']}:{arrivals[0]['prediction'].split()[0]}"
-                        if len(arrivals) >= 2:
-                            br_text = f"{arrivals[1]['line']}:{arrivals[1]['prediction'].split()[0]}"
-                    else:
-                        # Skip this pane entirely if fetch fails
-                        current_pane = 0
-                        last_widget_rotate = 0  # Force immediate rerender of Pane 0
-                        continue
-                except Exception:
-                    # Graceful skip
-                    current_pane = 0
-                    last_widget_rotate = 0
-                    continue
-
-                write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color)
+            write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color, cached_bus_pred, cached_bus_color)
 
         time.sleep(0.5)  # Responsive loop checking stop_event
 
