@@ -1,117 +1,210 @@
 import os
 import time
-import threading
-import logging
-from python_server.shared.controller.matrix_controller import stop_scrolling_text, run_clock_with_scrolling_text, run_clock_on_matrix_with_timeout
-import feedparser
-from python_server.shared.constants import RED, GOLD, GREEN, TEMP_FILE
 import subprocess
-from python_server.shared.service.weather_service import get_weather_rome
+import logging
+import feedparser
+from python_server.shared.constants import CPP_BINARY_FOLDER, GREEN, GOLD, RED, CYAN, PURPLE
+from python_server.shared.service.calendar_service import get_next_calendar_event
+from python_server.shared.service.stock_market_service import get_daily_price_change
+from python_server.shared.service.atac_service import fetch_atac_arrivals
 
-# RSS Feed URLs
+DASHBOARD_DATA_FILE = "/var/weather/dashboard_data.txt"
+
+# RSS feeds for priority News flashes
 ANSA_RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
 BALLKANWEB_RSS_FEED_URL = "https://www.balkanweb.com/feed/"
 BBC_RSS_FEED_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
 
-# Set to keep track of displayed news titles
+STOCKS_TO_TRACK = ["GOOG", "SXR9.DE", "BTC-USD"]
 displayed_news = set()
 
-def run(stop_event):
-    stop_scrolling_text()
-
-    # Start the temperature update thread
-    temperature_thread = threading.Thread(target=update_temperature_periodically, args=(stop_event,))
-    temperature_thread.start()
-
-    rss_feed_urls = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
-    new_news_found = False
-
-    # Initial fetch and add all news titles to displayed_news
-    for rss_feed_url in rss_feed_urls:
-        feed = feedparser.parse(rss_feed_url)
-        for entry in feed.entries:
-            entry_title = entry.title
-            displayed_news.add(entry_title)
-
-    while not stop_event.is_set():
-        new_news_found = False  # Reset for each iteration
-        logging.info(f"Checking for new news")  # Log check for news each loop
-
-        # Loop through all RSS feeds
-        for rss_feed_url in rss_feed_urls:
-            feed = feedparser.parse(rss_feed_url)  # Parse feed inside the loop for each feed
-
-            for entry in feed.entries:
-                if stop_event.is_set():
-                    return  # Exit the loop and function if stop_event is set
-
-                if "title" in entry:
-                    entry_title = entry.title
-                    if entry_title not in displayed_news:
-                        # Display the new news title
-                        new_news_found = True
-                        from python_server.shared import state
-                        with state.state_lock:
-                            state.is_news_scrolling = True
-                            state.current_news_entry = {
-                                "title": entry.title,
-                                "summary": entry.get("summary", entry.get("description", ""))
-                            }
-                        try:
-                            display_new_news_three_times(entry_title, stop_event)
-                        finally:
-                            with state.state_lock:
-                                state.is_news_scrolling = False
-                                state.current_news_entry = None
-
-                        # Mark this title as displayed
-                        displayed_news.add(entry_title)
-
-                        # Stop scrolling text after displaying the entry
-                        if stop_event.is_set():
-                            return  # Exit function if stop_event is set
-                        stop_scrolling_text()
-
-        # If no new news, display clock with weather
-        if not new_news_found:
-            run_clock_on_matrix_with_timeout(stop_event)
-            stop_scrolling_text()
-            logging.info("Clock display completed, back to checking news.")
-
-        # Wait for a while before checking for new news again
-        time.sleep(0.01)
-
-
-def display_new_news_three_times(entry_title, stop_event):
-    for i in range(3):
-        if stop_event.is_set():
-            break
-        run_clock_with_scrolling_text(entry_title, GREEN, GOLD, stop_event)
-
-
-def stop_clock():
+def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color):
+    """
+    Writes the static dashboard details to the plain text file.
+    The C++ dashboard binary reads this file dynamically every 1s to update the display.
+    """
     try:
-        subprocess.run(["pkill", "-2", "clock"])
-    except subprocess.CalledProcessError:
-        pass  # Handle any errors if needed
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(DASHBOARD_DATA_FILE), exist_ok=True)
+        
+        # Truncate strings to fit perfectly on the 64x32 matrix without overlap
+        temp_clean = temp[:6]
+        bl_clean = bottom_left[:8]
+        br_clean = bottom_right[:8]
+        
+        with open(DASHBOARD_DATA_FILE, "w") as file:
+            file.write(f"{temp_clean}\n")
+            file.write(f"{bl_clean}\n")
+            file.write(f"{bl_color}\n")
+            file.write(f"{br_clean}\n")
+            file.write(f"{br_color}\n")
+    except Exception as e:
+        logging.error(f"[Main Features] Failed to write dashboard data: {e}")
 
+def run(stop_event):
+    """
+    Runs the Feature-Rich Static Dashboard (Mode 8).
+    Starts the native C++ 'dashboard' program in the background, and cycles through
+    different information slots in Python, writing them to a shared status file.
+    """
+    logging.info("[Main Features] Starting Feature-Rich Static Dashboard Mode...")
+    
+    # 1. Gather initial data and write to file
+    from python_server.shared.service.weather_service import get_weather_rome
+    try:
+        temp = str(get_weather_rome()["main"]["temp"]) + "°C"
+    except Exception:
+        temp = "--°C"
+        
+    write_dashboard_data(temp, "Caricam.", CYAN, "Attend.", GREEN)
 
-def write_temperature_to_file(temperature):
-    with open(TEMP_FILE, "w") as file:
-        file.write(temperature)
-
-
-def update_temperature_periodically(stop_event):
-    while not stop_event.is_set():
+    # 2. Populate initial RSS news to only trigger flashes for *new* news
+    rss_feeds = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
+    for url in rss_feeds:
         try:
-            temperature = str(get_weather_rome()["main"]["temp"]) + '°C'
-            write_temperature_to_file(temperature)
-            logging.info(f"Temperature updated to {temperature}")
-        except Exception as e:
-            logging.error(f"Error updating temperature: {e}")
+            feed = feedparser.parse(url)
+            for entry in feed.entries:
+                if "title" in entry:
+                    displayed_news.add(entry.title)
+        except Exception:
+            pass
 
-        # Wait for 15 minutes (900 seconds), checking for stop_event every second
-        for _ in range(900):
+    # 3. Spawn C++ dashboard process in the background
+    cpp_dashboard = os.path.join(CPP_BINARY_FOLDER, 'dashboard')
+    cmd = [
+        "sudo", cpp_dashboard,
+        "-f", "../fonts/6x13.bdf",  # Clock font
+        "-s", "../fonts/4x6.bdf",   # Compact widget font
+        "-i", DASHBOARD_DATA_FILE,
+        "--led-no-hardware-pulse",
+        "--led-cols=64",
+        "--led-gpio-mapping=adafruit-hat",
+        "--led-slowdown-gpio=4"
+    ]
+
+    process = None
+    try:
+        logging.info(f"[Main Features] Spawning C++ Dashboard: {' '.join(cmd)}")
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except Exception as e:
+        logging.error(f"[Main Features] Failed to spawn C++ Dashboard: {e}")
+        return
+
+    # Cycle state variables
+    last_weather_fetch = 0
+    last_widget_rotate = 0
+    current_pane = 0  # 0: Calendar + Stocks, 1: ATAC Bus Arrivals, 2: Priority News
+
+    temp_cache = temp
+    stock_idx = 0
+
+    while not stop_event.is_set():
+        current_time = time.time()
+
+        # A. Fetch Weather every 10 minutes
+        if current_time - last_weather_fetch >= 600:
+            try:
+                temp_cache = str(get_weather_rome()["main"]["temp"]) + "°C"
+                last_weather_fetch = current_time
+            except Exception as e:
+                logging.error(f"[Main Features] Failed to fetch weather: {e}")
+
+        # B. Check for priority news flashes (Interrupts current flow)
+        new_headline = None
+        for url in rss_feeds:
             if stop_event.is_set():
                 break
-            time.sleep(1)
+            try:
+                feed = feedparser.parse(url)
+                for entry in feed.entries:
+                    if "title" in entry and entry.title not in displayed_news:
+                        new_headline = entry.title
+                        displayed_news.add(new_headline)
+                        break
+                if new_headline:
+                    break
+            except Exception:
+                pass
+
+        if new_headline:
+            logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")
+            # Alert flash on the bottom riquadro for 10 seconds
+            write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD)
+            time.sleep(10)
+            continue
+
+        # C. Rotate Widgets Pane every 5 seconds
+        if current_time - last_widget_rotate >= 5.0:
+            current_pane = (current_pane + 1) % 2  # Toggle between Calendar/Stocks and ATAC arrivals
+            last_widget_rotate = current_time
+
+            if current_pane == 0:
+                # --- PANE 1: Calendar (Left) & Stocks (Right) ---
+                bl_text = "Nessuno"
+                bl_color = CYAN
+                try:
+                    event = get_next_calendar_event()
+                    if event:
+                        bl_text = f"{event['time']} {event['title']}"
+                except Exception:
+                    pass
+
+                br_text = ""
+                br_color = GREEN
+                try:
+                    # Pick a stock dynamically from the list
+                    symbol = STOCKS_TO_TRACK[stock_idx]
+                    change = get_daily_price_change(symbol)
+                    display_symbol = symbol.split(".")[0].split("-")[0]
+                    if change is not None:
+                        sign = "+" if change >= 0 else ""
+                        br_text = f"{display_symbol}{sign}{change:.1f}%"
+                        br_color = GREEN if change >= 0 else RED
+                    else:
+                        br_text = f"{display_symbol} --"
+                    stock_idx = (stock_idx + 1) % len(STOCKS_TO_TRACK)
+                except Exception:
+                    br_text = "Stocks"
+
+                write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color)
+
+            elif current_pane == 1:
+                # --- PANE 2: ATAC Arrivals ---
+                bl_text = "ATAC 74029"
+                bl_color = GOLD
+                br_text = "--"
+                br_color = GOLD
+                try:
+                    stop_name, arrivals = fetch_atac_arrivals("74029")
+                    if arrivals:
+                        # Display up to 2 lines
+                        if len(arrivals) >= 1:
+                            bl_text = f"{arrivals[0]['line']}:{arrivals[0]['prediction'].split()[0]}"
+                        if len(arrivals) >= 2:
+                            br_text = f"{arrivals[1]['line']}:{arrivals[1]['prediction'].split()[0]}"
+                    else:
+                        # Skip this pane entirely if fetch fails
+                        current_pane = 0
+                        last_widget_rotate = 0  # Force immediate rerender of Pane 0
+                        continue
+                except Exception:
+                    # Graceful skip
+                    current_pane = 0
+                    last_widget_rotate = 0
+                    continue
+
+                write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color)
+
+        time.sleep(0.5)  # Responsive loop checking stop_event
+
+    # 4. Clean up background process
+    if process:
+        try:
+            if process.poll() is None:
+                process.terminate()
+                process.wait()
+            logging.info("[Main Features] Dashboard background process terminated.")
+        except Exception as e:
+            logging.error(f"[Main Features] Error stopping C++ dashboard process: {e}")
+
+    logging.info("[Main Features] Stopped Feature-Rich Static Dashboard Mode.")

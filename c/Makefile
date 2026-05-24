@@ -1,6 +1,6 @@
 CXXFLAGS=-O3 -W -Wall -Wextra -Wno-unused-parameter -D_FILE_OFFSET_BITS=64
-OBJECTS=led-image-viewer.o text-scroller.o clock.o
-BINARIES=led-image-viewer text-scroller clock clock_with_scrolling_text
+OBJECTS=led-image-viewer.o text-scroller.o clock.o dashboard.o
+BINARIES=led-image-viewer text-scroller clock clock_with_scrolling_text dashboard
 
 OPTIONAL_OBJECTS=video-viewer.o
 OPTIONAL_BINARIES=video-viewer
@@ -21,7 +21,7 @@ AV_CXXFLAGS=$(shell pkg-config --cflags libavcodec libavformat libswscale libavu
 AV_LDFLAGS=$(shell pkg-config --libs libavcodec libavformat libswscale libavutil)
 
 # Default target
-all: $(BINARIES) $(OPTIONAL_BINARIES)
+all: $(BINARIES)
 
 # Rule to ensure RGB matrix library is built
 $(RGB_LIBRARY): FORCE
@@ -42,6 +42,10 @@ video-viewer: video-viewer.o $(RGB_LIBRARY)
 # Rule for clock_with_scrolling_text
 clock_with_scrolling_text: clock_with_scrolling_text.o $(RGB_LIBRARY)
 	$(CXX) $(CXXFLAGS) clock_with_scrolling_text.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS)
+
+# Rule for dashboard
+dashboard: dashboard.o $(RGB_LIBRARY)
+	$(CXX) $(CXXFLAGS) dashboard.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS)
 
 # Rule for display_time_and_image
 display_time_and_image: display_time_and_image.o $(RGB_LIBRARY)

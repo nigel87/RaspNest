@@ -9,7 +9,7 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics, aquarium
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics, aquarium, clock_and_weather_news, main_cozy
 from python_server.shared.controller.matrix_controller import stop_scrolling_text, run_clock_with_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -32,12 +32,12 @@ MODES = {
     0: {"name": "News (ANSA)", "run_function": news.run, "args": (ANSA_RSS_FEED_URL,)},
     1: {"name": "News (BalkanWeb)", "run_function": news.run, "args": (BALLKANWEB_RSS_FEED_URL,)},
     2: {"name": "News (BBC)", "run_function": news.run, "args": (BBC_RSS_FEED_URL,)},
-    3: {"name": "Clock and Weather", "run_function": clock_and_weather.run, "args": ()},
+    3: {"name": "Clock & News (Old Main)", "run_function": clock_and_weather_news.run, "args": ()},
     4: {"name": "Weather Detail", "run_function": weather_detail.run, "args": ()},
     5: {"name": "Football", "run_function": football.run, "args": ()},
     6: {"name": "Stock Market", "run_function": stock_market.run, "args": ()},
     7: {"name": "System Info", "run_function": system_info.run, "args": ()},
-    8: {"name": "Main", "run_function": main.run, "args": ()},
+    8: {"name": "Main Mode (Feature Rich)", "run_function": main.run, "args": ()},
     9: {"name": "Image Display", "run_function": image_display.run, "args": ("../assets/gif/Fireplace.gif",)},
     10: {"name": "YouTube Music", "run_function": youtube_music.run, "args": ()},
     11: {"name": "ATAC Bus 74029", "run_function": atac_bus.run, "args": ()},
@@ -45,7 +45,8 @@ MODES = {
     13: {"name": "Outrun Highway", "run_function": outrun.run, "args": ()},
     14: {"name": "Cozy Cyberpunk", "run_function": cyberpunk.run, "args": ()},
     15: {"name": "Sand Physics", "run_function": sand_physics.run, "args": ()},
-    16: {"name": "Cozy Virtual Aquarium", "run_function": aquarium.run, "args": ()}
+    16: {"name": "Cozy Virtual Aquarium", "run_function": aquarium.run, "args": ()},
+    17: {"name": "Main Mode (Cozy Minimalist)", "run_function": main_cozy.run, "args": ()}
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)

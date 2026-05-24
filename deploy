@@ -1,15 +1,27 @@
 #!/bin/bash
 
-# Define source and destination
-SOURCE_DIR="python_server"
+# Define destination
 DEST_USER="nigel"
 DEST_HOST="raspberrypi"
 DEST_PATH="/home/nigel/RaspNest/"
 
-echo "Deploying ${SOURCE_DIR} to ${DEST_USER}@${DEST_HOST}:${DEST_PATH}"
+echo "Deploying python_server and c directories to ${DEST_USER}@${DEST_HOST}:${DEST_PATH}"
 
-# Use rsync to copy the directory, excluding cache files and folders
-rsync -avz --exclude '__pycache__/' --exclude '*.pyc' --exclude '*.pyo' --exclude '.DS_Store' --exclude '.git/' "${SOURCE_DIR}" "${DEST_USER}"@"${DEST_HOST}":"${DEST_PATH}"
+# Use rsync to copy the source folders, excluding cache files, object files, and compiled binaries
+rsync -avz \
+  --exclude '__pycache__/' \
+  --exclude '*.pyc' \
+  --exclude '*.pyo' \
+  --exclude '.DS_Store' \
+  --exclude '.git/' \
+  --exclude '*.o' \
+  --exclude 'led-image-viewer' \
+  --exclude 'text-scroller' \
+  --exclude 'clock' \
+  --exclude 'clock_with_scrolling_text' \
+  --exclude 'dashboard' \
+  --exclude 'video-viewer' \
+  python_server c "${DEST_USER}"@"${DEST_HOST}":"${DEST_PATH}"
 
 if [ $? -eq 0 ]; then
     echo "Deployment successful!"
