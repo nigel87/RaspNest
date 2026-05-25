@@ -338,14 +338,122 @@ class LEDMatrixDisplayService:
             cherrypy.response.status = 500
             return {"status": "error", "message": str(e)}
 
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def get_widget_config(self):
+        try:
+            import json
+            from python_server.shared.constants import WIDGET_CONFIG_FILE
+            if os.path.exists(WIDGET_CONFIG_FILE):
+                with open(WIDGET_CONFIG_FILE, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logging.error(f"Error reading widget config: {e}")
+            
+        return {
+            "top_widget": "atac_bus",
+            "bottom_left_widget": "calendar",
+            "bottom_right_widget": "stocks"
+        }
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def configure_widgets(self):
+        try:
+            import json
+            from python_server.shared.constants import WIDGET_CONFIG_FILE
+            data = cherrypy.request.json
+            
+            os.makedirs(os.path.dirname(WIDGET_CONFIG_FILE), exist_ok=True)
+            with open(WIDGET_CONFIG_FILE, 'w') as f:
+                json.dump(data, f, indent=4)
+                
+            logging.info(f"Saved new widget configuration: {data}")
+            return {"status": "success", "message": "Widget layout updated successfully"}
+        except Exception as e:
+            logging.error(f"Error saving widget config: {e}")
+            cherrypy.response.status = 500
+            return {"status": "error", "message": str(e)}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def configure_fun_mode(self):
+        try:
+            import json
+            FUN_MODE_FILE = "/var/weather/fun_mode.json"
+            data = cherrypy.request.json
+            mode = int(data.get("mode", 16))
+            
+            os.makedirs(os.path.dirname(FUN_MODE_FILE), exist_ok=True)
+            with open(FUN_MODE_FILE, 'w') as f:
+                json.dump({"mode": mode}, f, indent=4)
+                
+            logging.info(f"Saved fun mode configuration: {mode}")
+            return {"status": "success", "message": f"Fun mode set to {mode}"}
+        except Exception as e:
+            logging.error(f"Error saving fun mode config: {e}")
+            cherrypy.response.status = 500
+            return {"status": "error", "message": str(e)}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def current_state(self):
+        # Read widget config
+        widget_config = {
+            "top_widget": "atac_bus",
+            "bottom_left_widget": "calendar",
+            "bottom_right_widget": "stocks"
+        }
+        try:
+            import json
+            from python_server.shared.constants import WIDGET_CONFIG_FILE
+            if os.path.exists(WIDGET_CONFIG_FILE):
+                with open(WIDGET_CONFIG_FILE, 'r') as f:
+                    widget_config = json.load(f)
+        except Exception:
+            pass
+
+        # Read fun mode
+        fun_mode = 16
+        try:
+            import json
+            FUN_MODE_FILE = "/var/weather/fun_mode.json"
+            if os.path.exists(FUN_MODE_FILE):
+                with open(FUN_MODE_FILE, 'r') as f:
+                    fun_mode = json.load(f).get("mode", 16)
+        except Exception:
+            pass
+
+        # Read music state
+        from python_server.shared import state
+        music_state = {
+            "is_playing": False,
+            "title": "",
+            "artist": ""
+        }
+        with state.state_lock:
+            music_state["is_playing"] = state.is_music_playing
+            music_state["title"] = state.music_title
+            music_state["artist"] = state.music_artist
+
+        return {
+            "current_mode": self.current_mode,
+            "music": music_state,
+            "widget_config": widget_config,
+            "fun_mode": fun_mode
+        }
+
 # Enable CORS globally using a custom tool
 def enable_cors():
     cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
-    cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    cherrypy.response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 
 # Register the CORS tool
 cherrypy.tools.enable_cors = cherrypy.Tool('before_handler', enable_cors)
+
 
 if __name__ == '__main__':
     service = LEDMatrixDisplayService()

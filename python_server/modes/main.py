@@ -3,6 +3,7 @@ import time
 import subprocess
 import logging
 import feedparser
+import json
 from python_server.shared.constants import CPP_BINARY_FOLDER, GREEN, GOLD, RED, CYAN, PURPLE
 from python_server.shared.service.calendar_service import get_next_calendar_event
 from python_server.shared.service.stock_market_service import get_daily_price_change
@@ -103,7 +104,15 @@ def run(stop_event):
     # Cycle state variables
     last_weather_fetch = 0
     last_atac_fetch = 0
+    last_tomorrow_weather_fetch = 0
+    last_config_load = 0
     last_widget_rotate = 0
+    
+    widget_config = {
+        "top_widget": "atac_bus",
+        "bottom_left_widget": "calendar",
+        "bottom_right_widget": "stocks"
+    }
 
     temp_cache = temp
     stock_idx = 0
@@ -149,6 +158,24 @@ def run(stop_event):
                 is_music_playing=is_playing_str, music_scroll_text=music_text
             )
 
+        # E. Load Widget Configuration every 5 seconds
+        if current_time - last_config_load >= 5.0 or last_config_load == 0:
+            last_config_load = current_time
+            try:
+                from python_server.shared.constants import WIDGET_CONFIG_FILE
+                import json
+                if os.path.exists(WIDGET_CONFIG_FILE):
+                    with open(WIDGET_CONFIG_FILE, 'r') as f:
+                        widget_config = json.load(f)
+                else:
+                    widget_config = {
+                        "top_widget": "atac_bus",
+                        "bottom_left_widget": "calendar",
+                        "bottom_right_widget": "stocks"
+                    }
+            except Exception as e:
+                logging.error(f"[Main Features] Failed to load widget config: {e}")
+
         # A. Fetch Weather every 10 minutes
         if current_time - last_weather_fetch >= 600:
             try:
@@ -157,43 +184,59 @@ def run(stop_event):
             except Exception as e:
                 logging.error(f"[Main Features] Failed to fetch weather: {e}")
 
-        # A.5. Fetch ATAC 409 prediction for top widget every 30 seconds
-        if current_time - last_atac_fetch >= 30:
-            try:
-                stop_name, arrivals = fetch_atac_arrivals("74029")
-                found_409 = False
-                if arrivals:
-                    for arr in arrivals:
-                        if arr['line'] == "409":
-                            pred_text = arr['prediction']
-                            if "Nessun" in pred_text or "nessun" in pred_text:
-                                cached_bus_pred = "ND"
-                                cached_bus_color = "150,150,150"
-                            else:
-                                pred = pred_text.split()[0]
-                                if pred == "a": # "a tempo" -> 0'
-                                    cached_bus_pred = "0'"
-                                    cached_bus_color = "255,0,0" # Red
-                                elif pred.isdigit():
-                                    mins = int(pred)
-                                    cached_bus_pred = f"{mins}'"
-                                    if mins <= 5:
-                                        cached_bus_color = "255,0,0" # Red
-                                    elif mins <= 12:
-                                        cached_bus_color = "255,140,0" # Orange
-                                    else:
-                                        cached_bus_color = "0,255,0" # Green
+        # A.5. Fetch Top Widget Data dynamically based on configuration
+        top_widget_type = widget_config.get("top_widget", "atac_bus")
+        
+        if top_widget_type == "atac_bus":
+            if current_time - last_atac_fetch >= 30:
+                try:
+                    stop_name, arrivals = fetch_atac_arrivals("74029")
+                    found_409 = False
+                    if arrivals:
+                        for arr in arrivals:
+                            if arr['line'] == "409":
+                                pred_text = arr['prediction']
+                                if "Nessun" in pred_text or "nessun" in pred_text:
+                                    cached_bus_pred = "ND"
+                                    cached_bus_color = "150,150,150"
                                 else:
-                                    cached_bus_pred = f"{pred}'"
-                                    cached_bus_color = "255,140,0" # Orange
-                            found_409 = True
-                            break
-                if not found_409:
-                    cached_bus_pred = "ND"
-                    cached_bus_color = "150,150,150"
-                last_atac_fetch = current_time
-            except Exception as e:
-                logging.error(f"[Main Features] Failed to fetch ATAC for top widget: {e}")
+                                    pred = pred_text.split()[0]
+                                    if pred == "a": # "a tempo" -> 0'
+                                        cached_bus_pred = "0'"
+                                        cached_bus_color = "255,0,0" # Red
+                                    elif pred.isdigit():
+                                        mins = int(pred)
+                                        cached_bus_pred = f"{mins}'"
+                                        if mins <= 5:
+                                            cached_bus_color = "255,0,0" # Red
+                                        elif mins <= 12:
+                                            cached_bus_color = "255,140,0" # Orange
+                                        else:
+                                            cached_bus_color = "0,255,0" # Green
+                                    else:
+                                        cached_bus_pred = f"{pred}'"
+                                        cached_bus_color = "255,140,0" # Orange
+                                found_409 = True
+                                break
+                    if not found_409:
+                        cached_bus_pred = "ND"
+                        cached_bus_color = "150,150,150"
+                    last_atac_fetch = current_time
+                except Exception as e:
+                    logging.error(f"[Main Features] Failed to fetch ATAC for top widget: {e}")
+        elif top_widget_type == "tomorrow_weather":
+            if current_time - last_tomorrow_weather_fetch >= 900 or last_tomorrow_weather_fetch == 0:
+                try:
+                    from python_server.shared.service.weather_service import get_tomorrow_weather_rome
+                    tomorrow_pred = get_tomorrow_weather_rome()
+                    cached_bus_pred = tomorrow_pred
+                    cached_bus_color = "255,215,0" # Gold
+                    last_tomorrow_weather_fetch = current_time
+                except Exception as e:
+                    logging.error(f"[Main Features] Failed to fetch tomorrow weather: {e}")
+        else: # "none"
+            cached_bus_pred = "ND"
+            cached_bus_color = "150,150,150"
 
         # B. Check for priority news flashes (Interrupts current flow)
         new_headline = None
@@ -258,44 +301,75 @@ def run(stop_event):
             last_is_music_playing = None
             continue
 
-        # C. Rotate Stocks on the bottom row every 5 seconds (Persistent Calendar + Stocks)
+        # C. Rotate Widgets on the bottom row every 5 seconds
         if current_time - last_widget_rotate >= 5.0 or last_widget_rotate == 0:
             last_widget_rotate = current_time
 
-            # --- Bottom row: Calendar (Left) & Stocks (Right) ---
+            # --- Bottom Left Widget ---
+            bl_widget_type = widget_config.get("bottom_left_widget", "calendar")
             bl_text = "Libero"
             bl_color = CYAN
-            try:
-                event = get_next_calendar_event()
-                if event:
-                    bl_text = event['time']
-            except Exception:
-                pass
+            
+            if bl_widget_type == "calendar":
+                try:
+                    event = get_next_calendar_event()
+                    if event:
+                        bl_text = event['time']
+                except Exception:
+                    pass
+            elif bl_widget_type == "news":
+                bl_text = "News"
+                bl_color = GOLD
+            else: # "none"
+                bl_text = ""
 
+            # --- Bottom Right Widget ---
+            br_widget_type = widget_config.get("bottom_right_widget", "stocks")
             br_text = ""
             br_color = GREEN
-            try:
-                # Pick a stock dynamically from the list
-                symbol = STOCKS_TO_TRACK[stock_idx]
-                change = get_daily_price_change(symbol)
-                
-                # Custom translation map for tickers
-                display_map = {
-                    "GOOG": "GOOG",
-                    "BTC-USD": "BTC",
-                    "^GSPC": "SP500",
-                    "EXV3.DE": "EXV3"
-                }
-                display_symbol = display_map.get(symbol, symbol.split(".")[0].split("-")[0])
-                if change is not None:
-                    sign = "+" if change >= 0 else ""
-                    br_text = f"{display_symbol}{sign}{change:.1f}%"
-                    br_color = GREEN if change >= 0 else RED
-                else:
-                    br_text = f"{display_symbol} --"
-                stock_idx = (stock_idx + 1) % len(STOCKS_TO_TRACK)
-            except Exception:
-                br_text = "Stocks"
+            
+            if br_widget_type == "stocks":
+                try:
+                    # Pick a stock dynamically from the list
+                    symbol = STOCKS_TO_TRACK[stock_idx]
+                    change = get_daily_price_change(symbol)
+                    
+                    # Custom translation map for tickers
+                    display_map = {
+                        "GOOG": "GOOG",
+                        "BTC-USD": "BTC",
+                        "^GSPC": "SP500",
+                        "EXV3.DE": "EXV3"
+                    }
+                    display_symbol = display_map.get(symbol, symbol.split(".")[0].split("-")[0])
+                    if change is not None:
+                        sign = "+" if change >= 0 else ""
+                        br_text = f"{display_symbol}{sign}{change:.1f}%"
+                        br_color = GREEN if change >= 0 else RED
+                    else:
+                        br_text = f"{display_symbol} --"
+                    stock_idx = (stock_idx + 1) % len(STOCKS_TO_TRACK)
+                except Exception:
+                    br_text = "Stocks"
+            elif br_widget_type == "news":
+                try:
+                    # Grab a dynamic headline from ANSA feed
+                    import feedparser
+                    feed = feedparser.parse(ANSA_RSS_FEED_URL)
+                    if feed.entries:
+                        latest_title = feed.entries[0].title
+                        latest_clean = latest_title.replace('\n', ' ').replace('\r', ' ').strip()
+                        # Shorten to fit 7 chars nicely
+                        br_text = latest_clean[:7]
+                        br_color = GOLD
+                    else:
+                        br_text = "News"
+                        br_color = GOLD
+                except Exception:
+                    br_text = "News"
+                    br_color = GOLD
+            else: # "none"
+                br_text = ""
 
             write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color, cached_bus_pred, cached_bus_color, is_music_playing=is_playing_str, music_scroll_text=music_text)
 

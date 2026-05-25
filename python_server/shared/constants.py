@@ -62,3 +62,6 @@ GOOGLE_NEST_MINI_NAME = "Nest mini"
 AUTO_RESUME_MODE = 8  # Dynamic main menu mode
 import getpass
 TEMP_ALBUM_ART_PATH = f"/tmp/raspnest_album_art_{getpass.getuser()}.jpg"
+
+# --- Dynamic Widget Configuration ---
+WIDGET_CONFIG_FILE = "/var/weather/widget_config.json"
