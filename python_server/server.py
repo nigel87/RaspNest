@@ -82,7 +82,7 @@ class LEDMatrixDisplayService:
             return self.action_button()
 
         # Signal the current thread to stop and wait for it to finish
-        if self.current_thread and self.current_thread.is_alive():
+        if self.current_thread and self.current_thread.is_alive() and threading.current_thread() != self.current_thread:
             self.stop_event.set()
             self.current_thread.join()
             stop_scrolling_text()
@@ -127,7 +127,7 @@ class LEDMatrixDisplayService:
         logging.info(f"Local request to start mode {mode_id}")
         
         # Stop current running thread
-        if self.current_thread and self.current_thread.is_alive():
+        if self.current_thread and self.current_thread.is_alive() and threading.current_thread() != self.current_thread:
             self.stop_event.set()
             self.current_thread.join()
             stop_scrolling_text()

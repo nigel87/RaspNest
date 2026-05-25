@@ -197,6 +197,7 @@ def run(stop_event):
 
         # B. Check for priority news flashes (Interrupts current flow)
         new_headline = None
+        new_summary = ""
         for url in rss_feeds:
             if stop_event.is_set():
                 break
@@ -206,7 +207,8 @@ def run(stop_event):
                     clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
                     if "title" in entry and clean_title not in displayed_news:
                         new_headline = clean_title
-                        displayed_news.add(new_headline)
+                        new_summary = entry.get("summary", entry.get("description", ""))
+                        displayed_news.add(clean_title)
                         break
                 if new_headline:
                     break
@@ -215,21 +217,43 @@ def run(stop_event):
 
         if new_headline:
             logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")
-            write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD, cached_bus_pred, cached_bus_color, is_music_playing="0", music_scroll_text="")
             
-            # Dynamically calculate the perfect sleep duration so the entire headline scrolls across the screen
-            # BDF 4x6 character width is 4px plus 1px letter spacing (5px total)
-            headline_width = len(new_headline) * 5
-            clipping_boundary = 2 + len("FLASH") * 5 + 2 # ~29px
-            max_br_width = 64 - clipping_boundary - 2 # ~33px
-            
-            if headline_width <= max_br_width:
-                display_time = 8.0 # Fits statically, show for 8 seconds
-            else:
-                display_time = (64 + headline_width) * 0.060 # Exact scroll duration in seconds
+            # Set news scrolling context in state
+            from python_server.shared import state
+            with state.state_lock:
+                state.is_news_scrolling = True
+                state.current_news_entry = {
+                    "title": new_headline,
+                    "summary": new_summary
+                }
                 
-            logging.info(f"[Main Features] Sleeping for dynamic duration: {display_time:.1f}s")
-            time.sleep(display_time)
+            try:
+                write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD, cached_bus_pred, cached_bus_color, is_music_playing="0", music_scroll_text="")
+                
+                # Dynamically calculate the perfect sleep duration so the entire headline scrolls across the screen
+                # BDF 4x6 character width is 4px plus 1px letter spacing (5px total)
+                headline_width = len(new_headline) * 5
+                clipping_boundary = 2 + len("FLASH") * 5 + 2 # ~29px
+                max_br_width = 64 - clipping_boundary - 2 # ~33px
+                
+                if headline_width <= max_br_width:
+                    display_time = 8.0 # Fits statically, show for 8 seconds
+                else:
+                    display_time = (64 + headline_width) * 0.060 # Exact scroll duration in seconds
+                    
+                logging.info(f"[Main Features] Sleeping for dynamic duration: {display_time:.1f}s")
+                
+                # Check for stop_event every 100ms to react immediately to action button presses
+                start_time = time.time()
+                while time.time() - start_time < display_time:
+                    if stop_event.is_set():
+                        break
+                    time.sleep(0.1)
+            finally:
+                with state.state_lock:
+                    state.is_news_scrolling = False
+                    state.current_news_entry = None
+            
             # Force music state redraw on next iteration by resetting cached music state
             last_is_music_playing = None
             continue
