@@ -68,19 +68,14 @@ def run(stop_event):
     write_dashboard_data(temp, "Avvio...", CYAN, "...", GREEN, cached_bus_pred, cached_bus_color)
 
     # 2. Populate initial RSS news to only trigger flashes for *new* news
-    # For debugging/testing, we collect the 5 most recent ANSA news to flash them at startup!
-    startup_flashes = []
     rss_feeds = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
     for url in rss_feeds:
         try:
             feed = feedparser.parse(url)
-            for idx, entry in enumerate(feed.entries):
+            for entry in feed.entries:
                 if "title" in entry:
                     clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
-                    if url == ANSA_RSS_FEED_URL and len(startup_flashes) < 5:
-                        startup_flashes.append(clean_title)
-                    else:
-                        displayed_news.add(clean_title)
+                    displayed_news.add(clean_title)
         except Exception:
             pass
 
@@ -202,25 +197,21 @@ def run(stop_event):
 
         # B. Check for priority news flashes (Interrupts current flow)
         new_headline = None
-        if startup_flashes:
-            new_headline = startup_flashes.pop(0)
-            displayed_news.add(new_headline)
-        else:
-            for url in rss_feeds:
-                if stop_event.is_set():
-                    break
-                try:
-                    feed = feedparser.parse(url)
-                    for entry in feed.entries:
-                        clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
-                        if "title" in entry and clean_title not in displayed_news:
-                            new_headline = clean_title
-                            displayed_news.add(new_headline)
-                            break
-                    if new_headline:
+        for url in rss_feeds:
+            if stop_event.is_set():
+                break
+            try:
+                feed = feedparser.parse(url)
+                for entry in feed.entries:
+                    clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
+                    if "title" in entry and clean_title not in displayed_news:
+                        new_headline = clean_title
+                        displayed_news.add(new_headline)
                         break
-                except Exception:
-                    pass
+                if new_headline:
+                    break
+            except Exception:
+                pass
 
         if new_headline:
             logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")

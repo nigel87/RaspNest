@@ -9,7 +9,7 @@ logging.basicConfig(filename='logs/raspnest.log', level=logging.DEBUG, format='%
 
 sys.path.append('../')  # Adjust the path as needed based on your project structure
 
-from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics, aquarium, clock_and_weather_news, main_cozy
+from python_server.modes import clock_and_weather, news, weather_detail, football, stock_market, system_info, main, image_display, youtube_music, atac_bus, retro_gaming, outrun, cyberpunk, sand_physics, aquarium, clock_and_weather_news, main_cozy, night_mode
 from python_server.shared.controller.matrix_controller import stop_scrolling_text, run_clock_with_scrolling_text
 from python_server.shared.constants import *
 from python_server.modes.clock_and_weather import stop_clock
@@ -46,7 +46,8 @@ MODES = {
     14: {"name": "Cozy Cyberpunk", "run_function": cyberpunk.run, "args": ()},
     15: {"name": "Sand Physics", "run_function": sand_physics.run, "args": ()},
     16: {"name": "Cozy Virtual Aquarium", "run_function": aquarium.run, "args": ()},
-    17: {"name": "Main Mode (Cozy Minimalist)", "run_function": main_cozy.run, "args": ()}
+    17: {"name": "Main Mode (Cozy Minimalist)", "run_function": main_cozy.run, "args": ()},
+    18: {"name": "Cozy Night Mode", "run_function": night_mode.run, "args": ()}
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)
@@ -275,8 +276,8 @@ class LEDMatrixDisplayService:
             self.current_thread.start()
             return {"message": "News details started scrolling", "context": "news_details"}
 
-        # 2. Context: Favorites cycling (Main mode [8] -> ATAC bus [11] -> Aquarium [16])
-        favorites = [8, 11, 16]
+        # 2. Context: Favorites cycling (Feature Mode [8] -> Aquarium [16] -> Sand Physics [15])
+        favorites = [8, 16, 15]
         if self.current_mode not in favorites:
             next_mode = 8
         else:
@@ -297,14 +298,14 @@ class LEDMatrixDisplayService:
                 current_hour = now.tm_hour
                 
                 if current_hour != last_checked_hour:
-                    # Transition to Midnight (Turn display OFF)
-                    if current_hour == 0:
-                        logging.info("Midnight reached. Activating automatic Night Mode (turning off display).")
-                        self.trigger_mode_change(-1)
+                    # Transition to 1:00 AM (Activate dim Night Mode)
+                    if current_hour == 1:
+                        logging.info("01:00 AM reached. Activating automatic Cozy Night Mode (mode 18).")
+                        self.trigger_mode_change(18)
                         last_checked_hour = current_hour
-                    # Transition to 07:00 AM (Turn display ON in Main mode)
+                    # Transition to 7:00 AM (Deactivate Night Mode, start Feature Mode)
                     elif current_hour == 7:
-                        logging.info("07:00 reached. Deactivating Night Mode (starting Main mode).")
+                        logging.info("07:00 AM reached. Deactivating Night Mode (starting Feature Mode 8).")
                         self.trigger_mode_change(8)
                         last_checked_hour = current_hour
                     else:
@@ -363,12 +364,18 @@ if __name__ == '__main__':
     except Exception as e:
         logging.error(f"Failed to start Night Mode monitor daemon: {e}")
         
-    # Auto-start Main mode (mode 8) on startup
+    # Auto-start appropriate mode based on time of day (Night Mode 18 at night, Feature Mode 8 during the day)
     try:
-        service.trigger_mode_change(8)
-        logging.info("Auto-started Main mode (mode 8) successfully at server launch.")
+        import time
+        now_hour = time.localtime().tm_hour
+        if 1 <= now_hour < 7:
+            service.trigger_mode_change(18)
+            logging.info("Auto-started Cozy Night Mode (mode 18) at server launch (Night hours).")
+        else:
+            service.trigger_mode_change(8)
+            logging.info("Auto-started Feature Mode (mode 8) at server launch (Day hours).")
     except Exception as e:
-        logging.error(f"Failed to auto-start Main mode at launch: {e}")
+        logging.error(f"Failed to auto-start default mode at launch: {e}")
         
     cherrypy.quickstart(service, '/', {
         '/': {
