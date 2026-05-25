@@ -18,7 +18,7 @@ BBC_RSS_FEED_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
 STOCKS_TO_TRACK = ["GOOG", "SXR9.DE", "BTC-USD"]
 displayed_news = set()
 
-def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bus_pred="ND", bus_color="150,150,150"):
+def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bus_pred="ND", bus_color="150,150,150", is_music_playing="0", music_scroll_text=""):
     """
     Writes the static dashboard details to the plain text file.
     The C++ dashboard binary reads this file dynamically every 1s to update the display.
@@ -29,8 +29,8 @@ def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bu
         
         # Clean and limit string size to matrix bounds
         temp_clean = temp[:6]
-        bl_clean = bottom_left[:8]
-        br_clean = bottom_right[:8]
+        bl_clean = bottom_left
+        br_clean = bottom_right
         bus_clean = bus_pred[:5]
         
         with open(DASHBOARD_DATA_FILE, "w") as file:
@@ -41,6 +41,8 @@ def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bu
             file.write(f"{br_color}\n")
             file.write(f"{bus_clean}\n")
             file.write(f"{bus_color}\n")
+            file.write(f"{is_music_playing}\n")
+            file.write(f"{music_scroll_text}\n")
     except Exception as e:
         logging.error(f"[Main Features] Failed to write dashboard data: {e}")
 
@@ -63,16 +65,22 @@ def run(stop_event):
     except Exception:
         temp = "--C"
         
-    write_dashboard_data(temp, "Caricam.", CYAN, "Attend.", GREEN, cached_bus_pred, cached_bus_color)
+    write_dashboard_data(temp, "Avvio...", CYAN, "...", GREEN, cached_bus_pred, cached_bus_color)
 
     # 2. Populate initial RSS news to only trigger flashes for *new* news
+    # For debugging/testing, we collect the 5 most recent ANSA news to flash them at startup!
+    startup_flashes = []
     rss_feeds = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
     for url in rss_feeds:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries:
+            for idx, entry in enumerate(feed.entries):
                 if "title" in entry:
-                    displayed_news.add(entry.title)
+                    clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
+                    if url == ANSA_RSS_FEED_URL and len(startup_flashes) < 5:
+                        startup_flashes.append(clean_title)
+                    else:
+                        displayed_news.add(clean_title)
         except Exception:
             pass
 
@@ -105,8 +113,46 @@ def run(stop_event):
     temp_cache = temp
     stock_idx = 0
 
+    # Loop-level state variables for widgets
+    bl_text = "Avvio..."
+    bl_color = CYAN
+    br_text = "..."
+    br_color = GREEN
+    is_playing_str = "0"
+    music_text = ""
+
+    last_is_music_playing = None
+    last_music_title = None
+    last_music_artist = None
+
     while not stop_event.is_set():
         current_time = time.time()
+
+        # Check reactively if music state has changed
+        from python_server.shared import state
+        with state.state_lock:
+            current_music_playing = state.is_music_playing
+            current_music_title = state.music_title
+            current_music_artist = state.music_artist
+
+        music_changed = (current_music_playing != last_is_music_playing or
+                         current_music_title != last_music_title or
+                         current_music_artist != last_music_artist)
+
+        if music_changed:
+            last_is_music_playing = current_music_playing
+            last_music_title = current_music_title
+            last_music_artist = current_music_artist
+            
+            is_playing_str = "1" if current_music_playing else "0"
+            music_text = f"{current_music_artist} - {current_music_title}" if current_music_playing else ""
+            
+            logging.info(f"[Main Features] Music state changed reactively. Playing: {is_playing_str}, Info: {music_text}")
+            write_dashboard_data(
+                temp_cache, bl_text, bl_color, br_text, br_color, 
+                cached_bus_pred, cached_bus_color, 
+                is_music_playing=is_playing_str, music_scroll_text=music_text
+            )
 
         # A. Fetch Weather every 10 minutes
         if current_time - last_weather_fetch >= 600:
@@ -156,26 +202,45 @@ def run(stop_event):
 
         # B. Check for priority news flashes (Interrupts current flow)
         new_headline = None
-        for url in rss_feeds:
-            if stop_event.is_set():
-                break
-            try:
-                feed = feedparser.parse(url)
-                for entry in feed.entries:
-                    if "title" in entry and entry.title not in displayed_news:
-                        new_headline = entry.title
-                        displayed_news.add(new_headline)
-                        break
-                if new_headline:
+        if startup_flashes:
+            new_headline = startup_flashes.pop(0)
+            displayed_news.add(new_headline)
+        else:
+            for url in rss_feeds:
+                if stop_event.is_set():
                     break
-            except Exception:
-                pass
+                try:
+                    feed = feedparser.parse(url)
+                    for entry in feed.entries:
+                        clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
+                        if "title" in entry and clean_title not in displayed_news:
+                            new_headline = clean_title
+                            displayed_news.add(new_headline)
+                            break
+                    if new_headline:
+                        break
+                except Exception:
+                    pass
 
         if new_headline:
             logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")
-            # Alert flash on the bottom riquadro for 10 seconds
-            write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD, cached_bus_pred, cached_bus_color)
-            time.sleep(10)
+            write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD, cached_bus_pred, cached_bus_color, is_music_playing="0", music_scroll_text="")
+            
+            # Dynamically calculate the perfect sleep duration so the entire headline scrolls across the screen
+            # BDF 4x6 character width is 4px plus 1px letter spacing (5px total)
+            headline_width = len(new_headline) * 5
+            clipping_boundary = 2 + len("FLASH") * 5 + 2 # ~29px
+            max_br_width = 64 - clipping_boundary - 2 # ~33px
+            
+            if headline_width <= max_br_width:
+                display_time = 8.0 # Fits statically, show for 8 seconds
+            else:
+                display_time = (64 + headline_width) * 0.060 # Exact scroll duration in seconds
+                
+            logging.info(f"[Main Features] Sleeping for dynamic duration: {display_time:.1f}s")
+            time.sleep(display_time)
+            # Force music state redraw on next iteration by resetting cached music state
+            last_is_music_playing = None
             continue
 
         # C. Rotate Stocks on the bottom row every 5 seconds (Persistent Calendar + Stocks)
@@ -209,7 +274,7 @@ def run(stop_event):
             except Exception:
                 br_text = "Stocks"
 
-            write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color, cached_bus_pred, cached_bus_color)
+            write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color, cached_bus_pred, cached_bus_color, is_music_playing=is_playing_str, music_scroll_text=music_text)
 
         time.sleep(0.5)  # Responsive loop checking stop_event
 

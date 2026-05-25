@@ -113,6 +113,14 @@ int main(int argc, char *argv[]) {
   std::string bus_pred = "ND";
   Color bus_color(150, 150, 150);     // Grey
 
+  std::string last_bottom_right = "";
+  int br_scroll_pos = 0;
+
+  std::string music_active = "0";
+  std::string music_text = "";
+  std::string last_music_text = "";
+  int music_scroll_pos = 32;
+
   time_t last_file_read = 0;
 
   while (!interrupt_received) {
@@ -124,87 +132,177 @@ int main(int argc, char *argv[]) {
       std::ifstream file(input_file);
       if (file.is_open()) {
         std::string line_temp, line_bl, line_bl_col, line_br, line_br_col, line_bus_pred, line_bus_col;
+        std::string line_music_active, line_music_text;
         if (std::getline(file, line_temp)) temp = line_temp;
         if (std::getline(file, line_bl)) bottom_left = line_bl;
         if (std::getline(file, line_bl_col)) parseColor(&bl_color, line_bl_col);
-        if (std::getline(file, line_br)) bottom_right = line_br;
+        if (std::getline(file, line_br)) {
+          bottom_right = line_br;
+          if (bottom_right != last_bottom_right) {
+            br_scroll_pos = matrix->width();
+            last_bottom_right = bottom_right;
+          }
+        }
         if (std::getline(file, line_br_col)) parseColor(&br_color, line_br_col);
         if (std::getline(file, line_bus_pred)) bus_pred = line_bus_pred;
         if (std::getline(file, line_bus_col)) parseColor(&bus_color, line_bus_col);
+        if (std::getline(file, line_music_active)) music_active = line_music_active;
+        if (std::getline(file, line_music_text)) {
+          music_text = line_music_text;
+          if (music_text != last_music_text) {
+            music_scroll_pos = 32;
+            last_music_text = music_text;
+          }
+        }
       }
       last_file_read = now_time;
     }
 
-    // 2. Render Clock (HH:MM) at top-left
-    struct tm tm;
-    localtime_r(&now_time, &tm);
-    char time_text[6];
-    strftime(time_text, sizeof(time_text), "%H:%M", &tm);
-    rgb_matrix::DrawText(offscreen, clock_font, 2, clock_y, clock_color, NULL, time_text, 0);
+    if (music_active == "1") {
+      // --- Render Music Layout ---
 
-    // 3. Render Temp/Weather at top-right
-    // Align right: matrix->width() - text_width - margin
-    rgb_matrix::Font &w_font = has_weather_font ? weather_font : widget_font;
-    int temp_width = 0;
-    for (const char* c = temp.c_str(); *c; ++c) {
-      temp_width += w_font.CharacterWidth(*c);
-    }
-    int temp_x = matrix->width() - temp_width - 2;
-    rgb_matrix::DrawText(offscreen, w_font, temp_x, clock_y - 2, temp_color, NULL, temp.c_str(), 0);
+      // 1. Draw Clock (HH:MM) at top-left
+      struct tm tm;
+      localtime_r(&now_time, &tm);
+      char time_text[6];
+      strftime(time_text, sizeof(time_text), "%H:%M", &tm);
+      rgb_matrix::DrawText(offscreen, clock_font, 1, clock_y, clock_color, NULL, time_text, 0);
 
-    // 4. Render Dotted Separator Line
-    for (int x = 1; x < matrix->width() - 1; x += 2) {
-      offscreen->SetPixel(x, divider_y, divider_color.r, divider_color.g, divider_color.b);
-    }
-
-    // 4.5. Render Bus 409 top widget aligned with weather
-    if (!bus_pred.empty()) {
-      int clock_width = 0;
-      for (const char* c = time_text; *c; ++c) {
-        clock_width += clock_font.CharacterWidth(*c);
+      // 2. Draw Scrolling Music Info in bottom-left
+      int music_width = 0;
+      for (const char* c = music_text.c_str(); *c; ++c) {
+        music_width += widget_font.CharacterWidth(*c);
       }
-      int start_x = 2 + clock_width;
 
-      int end_x = temp_x;
-      int mid_x = start_x + (end_x - start_x) / 2;
-
-      int pred_width = 0;
-      for (const char* c = bus_pred.c_str(); *c; ++c) {
-        pred_width += widget_font.CharacterWidth(*c);
+      music_scroll_pos--;
+      if (music_scroll_pos + music_width < 0) {
+        music_scroll_pos = 32; // Scroll from the right edge of the left side (x = 32)
       }
-      int x_pred = mid_x - pred_width / 2;
-      if (x_pred < start_x + 1) x_pred = start_x + 1;
-      
-      rgb_matrix::DrawText(offscreen, widget_font, x_pred, clock_y - 2, bus_color, NULL, bus_pred.c_str(), 0);
-    }
 
-    // 5. Render Bottom-Left & Bottom-Right Widgets with dynamic overlap guard
-    int br_width = 0;
-    for (const char* c = bottom_right.c_str(); *c; ++c) {
-      br_width += widget_font.CharacterWidth(*c);
-    }
-    int br_x = matrix->width() - br_width - 2;
+      // Draw scrolling text in the bottom left area (Vibrant Green)
+      Color music_text_color(0, 255, 0);
+      rgb_matrix::DrawText(offscreen, widget_font, music_scroll_pos, widget_y, music_text_color, NULL, music_text.c_str(), 0);
 
-    int max_bl_width = br_x - 2 - 2; // leaves a 2-pixel gap between widgets
-    std::string bl_display = "";
-    int current_bl_width = 0;
-    for (size_t i = 0; i < bottom_left.length(); ++i) {
-      int char_w = widget_font.CharacterWidth(bottom_left[i]);
-      if (current_bl_width + char_w > max_bl_width) {
-        break;
+      // 3. Draw 32x32 Album Artwork on the right half (cols 32-63, rows 0-31)
+      bool img_drawn = false;
+      std::ifstream raw_file("/var/weather/album_art_raw.bin", std::ios::binary);
+      if (raw_file.is_open()) {
+        char buffer[3072]; // 32 * 32 * 3 = 3072 bytes
+        raw_file.read(buffer, sizeof(buffer));
+        if (raw_file.gcount() == sizeof(buffer)) {
+          int index = 0;
+          for (int y = 0; y < 32; ++y) {
+            for (int x = 32; x < 64; ++x) {
+              unsigned char r = buffer[index++];
+              unsigned char g = buffer[index++];
+              unsigned char b = buffer[index++];
+              offscreen->SetPixel(x, y, r, g, b);
+            }
+          }
+          img_drawn = true;
+        }
+        raw_file.close();
       }
-      current_bl_width += char_w;
-      bl_display += bottom_left[i];
+
+      if (!img_drawn) {
+        // If image file is missing or has error, clear the right square to black (overwrites overlapping scroller text)
+        for (int y = 0; y < 32; ++y) {
+          for (int x = 32; x < 64; ++x) {
+            offscreen->SetPixel(x, y, 0, 0, 0);
+          }
+        }
+        // Draw standard fallback label
+        rgb_matrix::DrawText(offscreen, widget_font, 36, 18, Color(100, 100, 100), NULL, "MUSIC", 0);
+      }
+
+    } else {
+      // --- Render Standard Dashboard Layout ---
+
+      // 2. Render Clock (HH:MM) at top-left
+      struct tm tm;
+      localtime_r(&now_time, &tm);
+      char time_text[6];
+      strftime(time_text, sizeof(time_text), "%H:%M", &tm);
+      rgb_matrix::DrawText(offscreen, clock_font, 2, clock_y, clock_color, NULL, time_text, 0);
+
+      // 3. Render Temp/Weather at top-right
+      rgb_matrix::Font &w_font = has_weather_font ? weather_font : widget_font;
+      int temp_width = 0;
+      for (const char* c = temp.c_str(); *c; ++c) {
+        temp_width += w_font.CharacterWidth(*c);
+      }
+      int temp_x = matrix->width() - temp_width - 2;
+      rgb_matrix::DrawText(offscreen, w_font, temp_x, clock_y - 2, temp_color, NULL, temp.c_str(), 0);
+
+      // 4. Render Dotted Separator Line
+      for (int x = 1; x < matrix->width() - 1; x += 2) {
+        offscreen->SetPixel(x, divider_y, divider_color.r, divider_color.g, divider_color.b);
+      }
+
+      // 4.5. Render Bus 409 top widget aligned with weather
+      if (!bus_pred.empty()) {
+        int clock_width = 0;
+        for (const char* c = time_text; *c; ++c) {
+          clock_width += clock_font.CharacterWidth(*c);
+        }
+        int start_x = 2 + clock_width;
+
+        int end_x = temp_x;
+        int mid_x = start_x + (end_x - start_x) / 2;
+
+        int pred_width = 0;
+        for (const char* c = bus_pred.c_str(); *c; ++c) {
+          pred_width += widget_font.CharacterWidth(*c);
+        }
+        int x_pred = mid_x - pred_width / 2;
+        if (x_pred < start_x + 1) x_pred = start_x + 1;
+        
+        rgb_matrix::DrawText(offscreen, widget_font, x_pred, clock_y - 2, bus_color, NULL, bus_pred.c_str(), 0);
+      }
+
+      // 5. Render Bottom-Left & Bottom-Right Widgets with dynamic overlap and scrolling guard
+      int br_width = 0;
+      for (const char* c = bottom_right.c_str(); *c; ++c) {
+        br_width += widget_font.CharacterWidth(*c);
+      }
+
+      int bl_width = 0;
+      for (const char* c = bottom_left.c_str(); *c; ++c) {
+        bl_width += widget_font.CharacterWidth(*c);
+      }
+
+      int clipping_boundary = 2 + bl_width + 2; // 2px margin + bl_width + 2px gap
+      int max_br_width = matrix->width() - clipping_boundary - 2;
+
+      int br_x = matrix->width() - br_width - 2;
+
+      if (br_width <= max_br_width) {
+        // It fits! Draw statically
+        br_scroll_pos = br_x;
+      } else {
+        // It is too long! Scroll it
+        br_scroll_pos--;
+        if (br_scroll_pos + br_width < clipping_boundary) {
+          br_scroll_pos = matrix->width();
+        }
+      }
+
+      // 1. Draw the bottom-right text (either statically or scrolling)
+      rgb_matrix::DrawText(offscreen, widget_font, br_scroll_pos, widget_y, br_color, NULL, bottom_right.c_str(), 0);
+
+      // 2. Clear the left region on the bottom row to prevent the scrolling text from overlapping
+      for (int x = 0; x < clipping_boundary; ++x) {
+        for (int y = widget_y - 6; y <= widget_y + 1; ++y) {
+          offscreen->SetPixel(x, y, 0, 0, 0);
+        }
+      }
+
+      // 3. Draw the bottom-left text statically
+      rgb_matrix::DrawText(offscreen, widget_font, 2, widget_y, bl_color, NULL, bottom_left.c_str(), 0);
     }
-
-    // Draw Left Widget safely truncated
-    rgb_matrix::DrawText(offscreen, widget_font, 2, widget_y, bl_color, NULL, bl_display.c_str(), 0);
-
-    // Draw Right Widget
-    rgb_matrix::DrawText(offscreen, widget_font, br_x, widget_y, br_color, NULL, bottom_right.c_str(), 0);
 
     // Wait a bit, and swap to the next buffer.
-    usleep(100 * 1000);  // 100ms loop is perfect for time updates and uses very low CPU
+    usleep(60 * 1000);  // 60ms loop is perfect for smooth text scrolling and time updates
     offscreen = matrix->SwapOnVSync(offscreen);
   }
 

@@ -43,47 +43,80 @@ class NestMediaStatusListener:
         player_state = getattr(status, 'player_state', 'UNKNOWN')
         logging.debug(f"Nest Mini player state updated: {player_state}")
 
+        from python_server.shared import state
+
         if player_state == 'PLAYING':
-            title = getattr(status, 'title', None)
-            artist = getattr(status, 'artist', None)
+            title = getattr(status, 'title', None) or "Unknown Title"
+            artist = getattr(status, 'artist', None) or "Unknown Artist"
             images = getattr(status, 'images', [])
             image_url = images[0].url if images else None
 
-            # Filter or log updates
             logging.info(f"Nest Mini is playing: '{title}' by '{artist}'")
 
-            # Check if this is a new track or if the display service isn't currently in YouTube Music mode (10)
-            if (self.display_service.current_mode != 10 or 
-                title != self.current_title or 
-                artist != self.current_artist):
-                
+            # Always update global music state
+            with state.state_lock:
+                state.is_music_playing = True
+                state.music_title = title
+                state.music_artist = artist
+
+            # Download album cover and downscale to 32x32 raw RGB bytes
+            album_art_local_path = None
+            if image_url:
+                album_art_local_path = download_album_art(image_url)
+                if album_art_local_path:
+                    try:
+                        from PIL import Image
+                        im = Image.open(album_art_local_path)
+                        im = im.resize((32, 32)).convert('RGB')
+                        raw_path = "/var/weather/album_art_raw.bin"
+                        import os
+                        os.makedirs(os.path.dirname(raw_path), exist_ok=True)
+                        with open(raw_path, "wb") as f:
+                            f.write(im.tobytes())
+                        logging.info(f"Nest Music Monitor: Downscaled 32x32 album art written to {raw_path}")
+                    except Exception as e:
+                        logging.error(f"Nest Music Monitor: Failed to downscale/save album art: {e}")
+
+            # If current mode is 8 (Static Dashboard), let it handle the music state internally
+            if self.display_service.current_mode == 8:
+                logging.info("Nest Music Monitor: System is in Mode 8. Letting the dashboard handle music layout dynamically.")
                 self.current_title = title
                 self.current_artist = artist
                 self.is_playing = True
+            else:
+                # Trigger Mode 10 if we are in another mode or if it's a new track
+                if (self.display_service.current_mode != 10 or 
+                    title != self.current_title or 
+                    artist != self.current_artist):
+                    
+                    self.current_title = title
+                    self.current_artist = artist
+                    self.is_playing = True
 
-                # Download album cover
-                album_art_local_path = None
-                if image_url:
-                    album_art_local_path = download_album_art(image_url)
-
-                # Programmatically switch matrix display mode
-                logging.info(f"Triggering YouTube Music display mode for song: '{title}'")
-                self.display_service.trigger_mode_change(
-                    mode_id=10,
-                    text=title or "Unknown Title",
-                    artist=artist or "Unknown Artist",
-                    image_path=album_art_local_path
-                )
+                    logging.info(f"Triggering YouTube Music display mode for song: '{title}'")
+                    self.display_service.trigger_mode_change(
+                        mode_id=10,
+                        text=title,
+                        artist=artist,
+                        image_path=album_art_local_path
+                    )
         else:
-            # If the speaker goes paused or idle and we were previously playing, revert to resume mode
+            # Revert global music state
+            with state.state_lock:
+                state.is_music_playing = False
+                state.music_title = ""
+                state.music_artist = ""
+
+            # If the speaker goes paused or idle and we were previously playing, revert
             if self.is_playing:
                 logging.info(f"Nest Mini playback is stopped/paused (State: {player_state}). Reverting to default mode.")
                 self.is_playing = False
                 self.current_title = None
                 self.current_artist = None
                 
-                # Revert display back to standard main dashboard rotation
-                self.display_service.trigger_mode_change(mode_id=AUTO_RESUME_MODE)
+                # If display is in mode 10, revert back to mode 8
+                if self.display_service.current_mode == 10:
+                    self.display_service.trigger_mode_change(mode_id=AUTO_RESUME_MODE)
 
 def start_monitoring(display_service):
     """
