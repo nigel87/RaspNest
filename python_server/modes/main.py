@@ -4,10 +4,131 @@ import subprocess
 import logging
 import feedparser
 import json
+import requests
+from datetime import datetime
 from python_server.shared.constants import CPP_BINARY_FOLDER, GREEN, GOLD, RED, CYAN, PURPLE
 from python_server.shared.service.calendar_service import get_next_calendar_event
 from python_server.shared.service.stock_market_service import get_daily_price_change
 from python_server.shared.service.atac_service import fetch_atac_arrivals
+
+# ========================================================================
+#                     DYNAMIC NEW WIDGETS HELPERS
+# ========================================================================
+
+def get_cpu_temp():
+    try:
+        if os.path.exists("/sys/class/thermal/thermal_zone0/temp"):
+            with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                return float(f.read().strip()) / 1000.0
+    except Exception:
+        pass
+    return 42.0
+
+def get_cpu_usage():
+    try:
+        return min(100, round(os.getloadavg()[0] * 100 / os.cpu_count()))
+    except Exception:
+        return 12
+
+def get_ram_usage():
+    try:
+        if os.path.exists("/proc/meminfo"):
+            meminfo = {}
+            with open("/proc/meminfo", "r") as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        meminfo[parts[0].replace(':', '')] = int(parts[1])
+            total = meminfo.get('MemTotal', 1)
+            free = meminfo.get('MemFree', 0) + meminfo.get('Buffers', 0) + meminfo.get('Cached', 0)
+            used = total - free
+            return min(100, round((used / total) * 100))
+    except Exception:
+        pass
+    return 32
+
+def get_ping_latency():
+    try:
+        cmd = ["ping", "-c", "1", "-W", "1", "8.8.8.8"]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.2)
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                if "time=" in line:
+                    parts = line.split("time=")
+                    if len(parts) >= 2:
+                        latency = parts[1].split()[0]
+                        return f"P{round(float(latency))}"
+    except Exception:
+        pass
+    return "P--"
+
+def get_calendar_countdown():
+    try:
+        event = get_next_calendar_event()
+        if event and 'time' in event:
+            event_time_str = event['time']
+            now = datetime.now()
+            event_dt = datetime.strptime(event_time_str, "%H:%M").replace(
+                year=now.year, month=now.month, day=now.day
+            )
+            diff_seconds = (event_dt - now).total_seconds()
+            if diff_seconds < 0:
+                return "NOW"
+            diff_minutes = diff_seconds / 60
+            if diff_minutes < 60:
+                return f"in {round(diff_minutes)}m"
+            else:
+                return f"in {round(diff_minutes / 60)}h"
+    except Exception:
+        pass
+    return "Libero"
+
+def get_today_date():
+    months_it = {
+        1: "Gen", 2: "Feb", 3: "Mar", 4: "Apr", 5: "Mag", 6: "Giu",
+        7: "Lug", 8: "Ago", 9: "Set", 10: "Ott", 11: "Nov", 12: "Dic"
+    }
+    now = datetime.now()
+    month_str = months_it.get(now.month, now.strftime("%b"))
+    return f"{now.day}{month_str}"
+
+def get_air_quality():
+    try:
+        from python_server.shared.service.secret import WEATHER_API_KEY
+        url = "http://api.openweathermap.org/data/2.5/air_pollution"
+        params = {
+            "lat": 41.9028,
+            "lon": 12.4964,
+            "appid": WEATHER_API_KEY
+        }
+        res = requests.get(url, params=params, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            aqi = data['list'][0]['main']['aqi']
+            aqi_labels = {1: "Bono", 2: "Discr", 3: "Mod", 4: "Pess", 5: "Toss"}
+            label = aqi_labels.get(aqi, f"AQI:{aqi}")
+            return f"AQI:{aqi} {label}"[:8]
+    except Exception:
+        pass
+    return "AQI:ND"
+
+def get_football_live_score():
+    try:
+        from python_server.shared.service.football_service import get_live_scores
+        data = get_live_scores()
+        if data and 'matches' in data and len(data['matches']) > 0:
+            match = data['matches'][0]
+            home_team = match['homeTeam']['tla'] or match['homeTeam']['name'][:3].upper()
+            away_team = match['awayTeam']['tla'] or match['awayTeam']['name'][:3].upper()
+            home_score = match['score']['fullTime']['homeTeam']
+            away_score = match['score']['fullTime']['awayTeam']
+            if home_score is None: home_score = 0
+            if away_score is None: away_score = 0
+            return f"{home_team} {home_score}-{away_score} {away_team}"[:8]
+    except Exception:
+        pass
+    return "No Live"
+
 
 DASHBOARD_DATA_FILE = "/var/weather/dashboard_data.txt"
 
@@ -104,10 +225,12 @@ def run(stop_event):
     # Cycle state variables
     last_weather_fetch = 0
     last_atac_fetch = 0
+    last_ping_fetch = 0
     last_tomorrow_weather_fetch = 0
     last_config_load = 0
     last_widget_rotate = 0
     
+    weather_cache = {}
     widget_config = {
         "top_widget": "atac_bus",
         "bottom_left_widget": "calendar",
@@ -177,9 +300,11 @@ def run(stop_event):
                 logging.error(f"[Main Features] Failed to load widget config: {e}")
 
         # A. Fetch Weather every 10 minutes
-        if current_time - last_weather_fetch >= 600:
+        if current_time - last_weather_fetch >= 600 or last_weather_fetch == 0:
             try:
-                temp_cache = f"{round(get_weather_rome()['main']['temp'])}C"
+                from python_server.shared.service.weather_service import get_weather_rome
+                weather_cache = get_weather_rome()
+                temp_cache = f"{round(weather_cache['main']['temp'])}C"
                 last_weather_fetch = current_time
             except Exception as e:
                 logging.error(f"[Main Features] Failed to fetch weather: {e}")
@@ -187,7 +312,44 @@ def run(stop_event):
         # A.5. Fetch Top Widget Data dynamically based on configuration
         top_widget_type = widget_config.get("top_widget", "atac_bus")
         
-        if top_widget_type == "atac_bus":
+        if top_widget_type == "cpu_temp":
+            t_val = get_cpu_temp()
+            cached_bus_pred = f"{round(t_val)}C"
+            if t_val < 50:
+                cached_bus_color = "0,255,0"    # Green
+            elif t_val < 70:
+                cached_bus_color = "255,140,0"  # Orange
+            else:
+                cached_bus_color = "255,0,0"    # Red
+        elif top_widget_type == "cpu_usage":
+            cached_bus_pred = f"C{get_cpu_usage()}%"
+            cached_bus_color = "0,255,255" # Cyan
+        elif top_widget_type == "ram_usage":
+            cached_bus_pred = f"R{get_ram_usage()}%"
+            cached_bus_color = "255,0,255" # Purple
+        elif top_widget_type == "ping":
+            if current_time - last_ping_fetch >= 10 or last_ping_fetch == 0:
+                cached_bus_pred = get_ping_latency()
+                cached_bus_color = "0,255,0" # Green
+                last_ping_fetch = current_time
+        elif top_widget_type == "wind_speed":
+            try:
+                w_ms = weather_cache.get('wind', {}).get('speed', 0.0)
+                w_kh = round(w_ms * 3.6)
+                cached_bus_pred = f"W{w_kh}k"
+                cached_bus_color = "0,255,255"
+            except Exception:
+                cached_bus_pred = "W--k"
+                cached_bus_color = "150,150,150"
+        elif top_widget_type == "humidity":
+            try:
+                hum = weather_cache.get('main', {}).get('humidity', 0)
+                cached_bus_pred = f"H{hum}%"
+                cached_bus_color = "0,255,0"
+            except Exception:
+                cached_bus_pred = "H--%"
+                cached_bus_color = "150,150,150"
+        elif top_widget_type == "atac_bus":
             if current_time - last_atac_fetch >= 30:
                 try:
                     stop_name, arrivals = fetch_atac_arrivals("74029")
@@ -317,6 +479,12 @@ def run(stop_event):
                         bl_text = event['time']
                 except Exception:
                     pass
+            elif bl_widget_type == "calendar_countdown":
+                bl_text = get_calendar_countdown()
+                bl_color = CYAN
+            elif bl_widget_type == "today_date":
+                bl_text = get_today_date()
+                bl_color = CYAN
             elif bl_widget_type == "news":
                 bl_text = "News"
                 bl_color = GOLD
@@ -368,6 +536,15 @@ def run(stop_event):
                 except Exception:
                     br_text = "News"
                     br_color = GOLD
+            elif br_widget_type == "football_live":
+                br_text = get_football_live_score()
+                br_color = GREEN if "No Live" not in br_text else "150,150,150"
+            elif br_widget_type == "air_quality":
+                br_text = get_air_quality()
+                br_color = "0,255,255" # Cyan
+            elif br_widget_type == "custom_status":
+                br_text = widget_config.get("custom_status", "HOME")[:8]
+                br_color = GOLD
             else: # "none"
                 br_text = ""
 

@@ -341,6 +341,12 @@ class LEDMatrixDisplayService:
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def get_widget_config(self):
+        if cherrypy.request.method == 'OPTIONS':
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            return ''
+            
         try:
             import json
             from python_server.shared.constants import WIDGET_CONFIG_FILE
@@ -357,13 +363,22 @@ class LEDMatrixDisplayService:
         }
 
     @cherrypy.expose
-    @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def configure_widgets(self):
+        if cherrypy.request.method == 'OPTIONS':
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            return ''
+            
         try:
             import json
             from python_server.shared.constants import WIDGET_CONFIG_FILE
-            data = cherrypy.request.json
+            
+            # Read and parse the raw request body manually
+            cl = cherrypy.request.headers.get('Content-Length', 0)
+            raw_body = cherrypy.request.body.read(int(cl)).decode('utf-8')
+            data = json.loads(raw_body)
             
             os.makedirs(os.path.dirname(WIDGET_CONFIG_FILE), exist_ok=True)
             with open(WIDGET_CONFIG_FILE, 'w') as f:
@@ -377,13 +392,22 @@ class LEDMatrixDisplayService:
             return {"status": "error", "message": str(e)}
 
     @cherrypy.expose
-    @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     def configure_fun_mode(self):
+        if cherrypy.request.method == 'OPTIONS':
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            return ''
+            
         try:
             import json
-            FUN_MODE_FILE = "/var/weather/fun_mode.json"
-            data = cherrypy.request.json
+            FUN_MODE_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "fun_mode.json"))
+            
+            # Read and parse the raw request body manually
+            cl = cherrypy.request.headers.get('Content-Length', 0)
+            raw_body = cherrypy.request.body.read(int(cl)).decode('utf-8')
+            data = json.loads(raw_body)
             mode = int(data.get("mode", 16))
             
             os.makedirs(os.path.dirname(FUN_MODE_FILE), exist_ok=True)
@@ -400,6 +424,12 @@ class LEDMatrixDisplayService:
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def current_state(self):
+        if cherrypy.request.method == 'OPTIONS':
+            cherrypy.response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            cherrypy.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+            return ''
+            
         # Read widget config
         widget_config = {
             "top_widget": "atac_bus",
@@ -419,7 +449,7 @@ class LEDMatrixDisplayService:
         fun_mode = 16
         try:
             import json
-            FUN_MODE_FILE = "/var/weather/fun_mode.json"
+            FUN_MODE_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "fun_mode.json"))
             if os.path.exists(FUN_MODE_FILE):
                 with open(FUN_MODE_FILE, 'r') as f:
                     fun_mode = json.load(f).get("mode", 16)
