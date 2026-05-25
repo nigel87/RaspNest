@@ -28,6 +28,10 @@ def load_cached_data(symbol):
 
 def save_to_cache(symbol, change_pct):
     cache_data = {}
+    try:
+        os.makedirs(os.path.dirname(STOCK_CACHE_FILE), exist_ok=True)
+    except Exception:
+        pass
     if os.path.exists(STOCK_CACHE_FILE):
         try:
             with open(STOCK_CACHE_FILE, 'r') as file:
@@ -76,7 +80,10 @@ def get_daily_price_change(symbol):
             return None
 
         daily_change = ((latest_close - previous_close) / previous_close) * 100
-        save_to_cache(symbol, daily_change)
+        try:
+            save_to_cache(symbol, daily_change)
+        except Exception as e:
+            logging.warning(f"[Stock] Failed to save to cache: {e}")
         return daily_change
 
     except Exception as e:

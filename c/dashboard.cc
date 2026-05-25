@@ -34,6 +34,60 @@ static bool parseColor(Color *c, const std::string& str) {
   return sscanf(str.c_str(), "%hhu,%hhu,%hhu", &c->r, &c->g, &c->b) == 3;
 }
 
+static int GetStockTextWidth(const rgb_matrix::Font &font, const std::string &text) {
+  int width = 0;
+  for (size_t i = 0; i < text.size(); ) {
+    if (i + 2 < text.size() && (unsigned char)text[i] == 0xE2 && (unsigned char)text[i+1] == 0x82 && (unsigned char)text[i+2] == 0xBF) {
+      width += 5; // 4px + 1px spacing
+      i += 3;
+    } else {
+      width += font.CharacterWidth(text[i]);
+      i++;
+    }
+  }
+  return width;
+}
+
+static void DrawStockText(FrameCanvas *canvas, const rgb_matrix::Font &font, int x, int y, const Color &color, const std::string &text) {
+  int cur_x = x;
+  for (size_t i = 0; i < text.size(); ) {
+    if (i + 2 < text.size() && (unsigned char)text[i] == 0xE2 && (unsigned char)text[i+1] == 0x82 && (unsigned char)text[i+2] == 0xBF) {
+      int top_y = y - 5;
+      
+      // Vertical strokes
+      canvas->SetPixel(cur_x + 1, top_y, color.r, color.g, color.b);
+      canvas->SetPixel(cur_x + 2, top_y, color.r, color.g, color.b);
+      
+      canvas->SetPixel(cur_x + 1, top_y + 5, color.r, color.g, color.b);
+      canvas->SetPixel(cur_x + 2, top_y + 5, color.r, color.g, color.b);
+      
+      // Main B shape
+      for (int yy = top_y + 1; yy <= top_y + 4; ++yy) {
+        canvas->SetPixel(cur_x + 1, yy, color.r, color.g, color.b);
+        canvas->SetPixel(cur_x + 2, yy, color.r, color.g, color.b);
+      }
+      
+      // Left curves
+      canvas->SetPixel(cur_x, top_y + 1, color.r, color.g, color.b);
+      canvas->SetPixel(cur_x, top_y + 2, color.r, color.g, color.b);
+      canvas->SetPixel(cur_x, top_y + 3, color.r, color.g, color.b);
+      canvas->SetPixel(cur_x, top_y + 4, color.r, color.g, color.b);
+      
+      // Right loops
+      canvas->SetPixel(cur_x + 3, top_y + 1, color.r, color.g, color.b);
+      canvas->SetPixel(cur_x + 3, top_y + 3, color.r, color.g, color.b);
+      
+      cur_x += 5; // 4px + 1px spacing
+      i += 3;
+    } else {
+      char c_str[2] = { text[i], '\0' };
+      rgb_matrix::DrawText(canvas, font, cur_x, y, color, NULL, c_str, 0);
+      cur_x += font.CharacterWidth(text[i]);
+      i++;
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   RGBMatrix::Options matrix_options;
   rgb_matrix::RuntimeOptions runtime_opt;
@@ -261,10 +315,7 @@ int main(int argc, char *argv[]) {
       }
 
       // 5. Render Bottom-Left & Bottom-Right Widgets with dynamic overlap and scrolling guard
-      int br_width = 0;
-      for (const char* c = bottom_right.c_str(); *c; ++c) {
-        br_width += widget_font.CharacterWidth(*c);
-      }
+      int br_width = GetStockTextWidth(widget_font, bottom_right);
 
       int bl_width = 0;
       for (const char* c = bottom_left.c_str(); *c; ++c) {
@@ -288,7 +339,7 @@ int main(int argc, char *argv[]) {
       }
 
       // 1. Draw the bottom-right text (either statically or scrolling)
-      rgb_matrix::DrawText(offscreen, widget_font, br_scroll_pos, widget_y, br_color, NULL, bottom_right.c_str(), 0);
+      DrawStockText(offscreen, widget_font, br_scroll_pos, widget_y, br_color, bottom_right);
 
       // 2. Clear the left region on the bottom row to prevent the scrolling text from overlapping
       for (int x = 0; x < clipping_boundary; ++x) {

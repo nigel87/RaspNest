@@ -1,41 +1,47 @@
-"""
-Quick diagnostic: find the correct Yahoo Finance tickers for Nigel's ETFs.
-Run from the RaspNest root: python3 python_server/test_stocks.py
-"""
-import yfinance as yf
+import sys
+import os
+import logging
 
-# Base tickers (from Trade Republic / Xetra)
-# We try common exchange suffixes to find which one Yahoo Finance knows
-CANDIDATES = {
-    "S&P500 (SXR9)": [
-        "SXR9.DE", "SXR9.F", "SXR9.XETRA", "CSPX.L", "CSPX.MI",
-    ],
-    "MSCI Europe IT (ESIT)": [
-        "ESIT.MI", "ESIT.DE", "ESIT.F", "ESIT.L", "IUIT.L", "IUIT.MI",
-    ],
-    "Europe Defence (DFNC)": [
-        "DFNC.L", "DFNC.DE", "DFNC.F", "DFNC.MI", "DFNC.AS",
-    ],
-    "GOOG (control)": [
-        "GOOG",
-    ],
-}
+# Set up logging to stdout
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-print("=" * 60)
-for name, tickers in CANDIDATES.items():
-    print(f"\n>>> {name}")
-    for t in tickers:
+# Adjust python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from python_server.shared.service.stock_market_service import get_daily_price_change
+
+def test_stocks():
+    tickers = ["GOOG", "BTC-USD", "^GSPC", "EXV3.DE"]
+    print("==================================================")
+    print("Testing Live Tickers Fetching via yfinance...")
+    print("==================================================")
+    
+    # We clear the cache file if it exists to force a live network request
+    cache_path = "/var/weather/stock_data_cache.json"
+    if os.path.exists(cache_path):
         try:
-            hist = yf.Ticker(t).history(period="5d")
-            if not hist.empty and len(hist) >= 2:
-                latest   = hist["Close"].iloc[-1]
-                previous = hist["Close"].iloc[-2]
-                change   = ((latest - previous) / previous) * 100
-                sign     = "+" if change > 0 else ""
-                print(f"  ✅ {t:<15}  close={latest:.4f}  day={sign}{change:.2f}%")
-            else:
-                print(f"  ❌ {t:<15}  (no data / hist empty)")
+            os.remove(cache_path)
+            print("Cleared stock data cache to force live fetch.")
         except Exception as e:
-            print(f"  💥 {t:<15}  error: {e}")
-print("\n" + "=" * 60)
-print("Use the ✅ ticker in stock_market.py")
+            print(f"Note: Could not clear cache file: {e}")
+            
+    success_count = 0
+    for symbol in tickers:
+        try:
+            print(f"Fetching data for ticker: {symbol} ...")
+            change = get_daily_price_change(symbol)
+            if change is not None:
+                sign = "+" if change >= 0 else ""
+                print(f"  -> SUCCESS! Live change for {symbol}: {sign}{change:.2f}%")
+                success_count += 1
+            else:
+                print(f"  -> FAILED: Received None for {symbol}")
+        except Exception as e:
+            print(f"  -> ERROR fetching {symbol}: {e}")
+            
+    print("==================================================")
+    print(f"Result: {success_count}/{len(tickers)} tickers successfully fetched.")
+    print("==================================================")
+
+if __name__ == "__main__":
+    test_stocks()

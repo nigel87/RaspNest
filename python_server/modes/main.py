@@ -15,7 +15,7 @@ ANSA_RSS_FEED_URL = "https://www.ansa.it/sito/ansait_rss.xml"
 BALLKANWEB_RSS_FEED_URL = "https://www.balkanweb.com/feed/"
 BBC_RSS_FEED_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
 
-STOCKS_TO_TRACK = ["GOOG", "SXR9.DE", "BTC-USD"]
+STOCKS_TO_TRACK = ["GOOG", "BTC-USD", "^GSPC", "EXV3.DE"]
 displayed_news = set()
 
 def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bus_pred="ND", bus_color="150,150,150", is_music_playing="0", music_scroll_text=""):
@@ -278,7 +278,15 @@ def run(stop_event):
                 # Pick a stock dynamically from the list
                 symbol = STOCKS_TO_TRACK[stock_idx]
                 change = get_daily_price_change(symbol)
-                display_symbol = symbol.split(".")[0].split("-")[0]
+                
+                # Custom translation map for tickers
+                display_map = {
+                    "GOOG": "GOOG",
+                    "BTC-USD": "BTC",
+                    "^GSPC": "SP500",
+                    "EXV3.DE": "EXV3"
+                }
+                display_symbol = display_map.get(symbol, symbol.split(".")[0].split("-")[0])
                 if change is not None:
                     sign = "+" if change >= 0 else ""
                     br_text = f"{display_symbol}{sign}{change:.1f}%"
