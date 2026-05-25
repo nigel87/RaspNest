@@ -183,12 +183,12 @@ def run(stop_event):
             last_widget_rotate = current_time
 
             # --- Bottom row: Calendar (Left) & Stocks (Right) ---
-            bl_text = "Nessuno"
+            bl_text = "Libero"
             bl_color = CYAN
             try:
                 event = get_next_calendar_event()
                 if event:
-                    bl_text = f"{event['time']} {event['title']}"
+                    bl_text = event['time']
             except Exception:
                 pass
 

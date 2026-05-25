@@ -178,15 +178,29 @@ int main(int argc, char *argv[]) {
       rgb_matrix::DrawText(offscreen, widget_font, x_pred, clock_y - 2, bus_color, NULL, bus_pred.c_str(), 0);
     }
 
-    // 5. Render Bottom-Left Widget
-    rgb_matrix::DrawText(offscreen, widget_font, 2, widget_y, bl_color, NULL, bottom_left.c_str(), 0);
-
-    // 6. Render Bottom-Right Widget
+    // 5. Render Bottom-Left & Bottom-Right Widgets with dynamic overlap guard
     int br_width = 0;
     for (const char* c = bottom_right.c_str(); *c; ++c) {
       br_width += widget_font.CharacterWidth(*c);
     }
     int br_x = matrix->width() - br_width - 2;
+
+    int max_bl_width = br_x - 2 - 2; // leaves a 2-pixel gap between widgets
+    std::string bl_display = "";
+    int current_bl_width = 0;
+    for (size_t i = 0; i < bottom_left.length(); ++i) {
+      int char_w = widget_font.CharacterWidth(bottom_left[i]);
+      if (current_bl_width + char_w > max_bl_width) {
+        break;
+      }
+      current_bl_width += char_w;
+      bl_display += bottom_left[i];
+    }
+
+    // Draw Left Widget safely truncated
+    rgb_matrix::DrawText(offscreen, widget_font, 2, widget_y, bl_color, NULL, bl_display.c_str(), 0);
+
+    // Draw Right Widget
     rgb_matrix::DrawText(offscreen, widget_font, br_x, widget_y, br_color, NULL, bottom_right.c_str(), 0);
 
     // Wait a bit, and swap to the next buffer.
