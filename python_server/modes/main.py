@@ -15,6 +15,21 @@ from python_server.shared.service.atac_service import fetch_atac_arrivals
 #                     DYNAMIC NEW WIDGETS HELPERS
 # ========================================================================
 
+def parse_color_config(config, slot_prefix, default_rgb):
+    color_val = config.get(f"{slot_prefix}_color", None)
+    if not color_val or color_val.lower() == "default":
+        return default_rgb
+    
+    if color_val.startswith('#'):
+        try:
+            h = color_val.lstrip('#')
+            rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+            return f"{rgb[0]},{rgb[1]},{rgb[2]}"
+        except Exception:
+            pass
+            
+    return color_val
+
 def get_cpu_temp():
     try:
         if os.path.exists("/sys/class/thermal/thermal_zone0/temp"):
@@ -190,6 +205,7 @@ def run(stop_event):
     write_dashboard_data(temp, "Avvio...", CYAN, "...", GREEN, cached_bus_pred, cached_bus_color)
 
     # 2. Populate initial RSS news to only trigger flashes for *new* news
+    displayed_news.clear()
     rss_feeds = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
     for url in rss_feeds:
         try:
@@ -229,6 +245,7 @@ def run(stop_event):
     last_tomorrow_weather_fetch = 0
     last_config_load = 0
     last_widget_rotate = 0
+    last_rss_fetch = 0
     
     weather_cache = {}
     widget_config = {
@@ -400,25 +417,31 @@ def run(stop_event):
             cached_bus_pred = "ND"
             cached_bus_color = "150,150,150"
 
+        # Override top color if customized
+        cached_bus_color = parse_color_config(widget_config, "top", cached_bus_color)
+
         # B. Check for priority news flashes (Interrupts current flow)
         new_headline = None
         new_summary = ""
-        for url in rss_feeds:
-            if stop_event.is_set():
-                break
-            try:
-                feed = feedparser.parse(url)
-                for entry in feed.entries:
-                    clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
-                    if "title" in entry and clean_title not in displayed_news:
-                        new_headline = clean_title
-                        new_summary = entry.get("summary", entry.get("description", ""))
-                        displayed_news.add(clean_title)
+        if widget_config.get("enable_news_flash", True):
+            if current_time - last_rss_fetch >= 300 or last_rss_fetch == 0:
+                last_rss_fetch = current_time
+                for url in rss_feeds:
+                    if stop_event.is_set():
                         break
-                if new_headline:
-                    break
-            except Exception:
-                pass
+                    try:
+                        feed = feedparser.parse(url)
+                        for entry in feed.entries:
+                            clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
+                            if "title" in entry and clean_title not in displayed_news:
+                                new_headline = clean_title
+                                new_summary = entry.get("summary", entry.get("description", ""))
+                                displayed_news.add(clean_title)
+                                break
+                        if new_headline:
+                            break
+                    except Exception:
+                        pass
 
         if new_headline:
             logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")
@@ -461,6 +484,8 @@ def run(stop_event):
             
             # Force music state redraw on next iteration by resetting cached music state
             last_is_music_playing = None
+            # Force an immediate widgets restoration on the next iteration
+            last_widget_rotate = 0
             continue
 
         # C. Rotate Widgets on the bottom row every 5 seconds
@@ -545,8 +570,9 @@ def run(stop_event):
             elif br_widget_type == "custom_status":
                 br_text = widget_config.get("custom_status", "HOME")[:8]
                 br_color = GOLD
-            else: # "none"
-                br_text = ""
+            # Override bottom left and bottom right colors if customized
+            bl_color = parse_color_config(widget_config, "bottom_left", bl_color)
+            br_color = parse_color_config(widget_config, "bottom_right", br_color)
 
             write_dashboard_data(temp_cache, bl_text, bl_color, br_text, br_color, cached_bus_pred, cached_bus_color, is_music_playing=is_playing_str, music_scroll_text=music_text)
 
