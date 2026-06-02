@@ -87,3 +87,23 @@ NUOVE MODALITÀ PIXEL ART IN VALUTAZIONE
         i pesci vicini che nuotano per mangiarli.
 
 ========================================================================
+
+[ ] OPZIONE 7: Classificazione e Filtraggio Intelligente News (Ultra-Low Resources)
+    - Descrizione: Un sistema di filtraggio intelligente e leggero per la matrice LED 
+      che categorizza le notizie dei feed RSS in tempo reale, permettendo di escludere 
+      categorie indesiderate (es. gossip/spettacolo) e dando priorità visiva alle notizie 
+      urgenti e di rilievo storico/politico.
+    - Dettagli:
+      * Filtraggio Categoria (Zero-Resource): Estrazione dei tag nativi `<category>` forniti 
+        dai feed RSS (es. BBC, ANSA) combinata con una scansione ultra-rapida tramite dizionario 
+        di parole chiave (es. "showbiz", "gossip", "canzone", "gf vip" per escluderle subito).
+      * Classificazione di Importanza: Rilevamento automatico di termini critici (es. "terremoto", 
+        "guerra", "attentato", "esplosione", "ultim'ora") per assegnare una priorità da 1 a 3.
+      * Dashboard Integrata: Toggle interattivi sul pannello Angular per attivare/disattivare 
+        singole categorie (Politica, Scienza, Esteri, Spettacolo) e regolare il livello minimo 
+        di importanza necessario per attivare un Breaking News Flash automatico.
+      * Estetica Matrice Dinamica: Le notizie ad Alta Importanza (Livello 3) verranno visualizzate 
+        con animazioni d'emergenza (es. bordo lampeggiante rosso o tag [ALLERTA]), mentre le 
+        generali scorreranno in oro nel normale ticker del Slot C.
+
+========================================================================

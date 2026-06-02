@@ -21,7 +21,7 @@ rsync -avz \
   --exclude 'clock_with_scrolling_text' \
   --exclude 'dashboard' \
   --exclude 'video-viewer' \
-  python_server c "${DEST_USER}"@"${DEST_HOST}":"${DEST_PATH}"
+  python_server c assets "${DEST_USER}"@"${DEST_HOST}":"${DEST_PATH}"
 
 if [ $? -eq 0 ]; then
     echo "Deployment successful!"

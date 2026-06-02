@@ -47,7 +47,8 @@ MODES = {
     15: {"name": "Sand Physics", "run_function": sand_physics.run, "args": ()},
     16: {"name": "Cozy Virtual Aquarium", "run_function": aquarium.run, "args": ()},
     17: {"name": "Main Mode (Cozy Minimalist)", "run_function": main_cozy.run, "args": ()},
-    18: {"name": "Cozy Night Mode", "run_function": night_mode.run, "args": ()}
+    18: {"name": "Cozy Night Mode", "run_function": night_mode.run, "args": ()},
+    19: {"name": "News (All Feeds)", "run_function": news.run, "args": ("all",)}
 }
 
 TOTAL_NUMBER_OF_MODES = len(MODES)
@@ -506,6 +507,15 @@ if __name__ == '__main__':
     try:
         import time
         now_hour = time.localtime().tm_hour
+        
+        # 1. Display the pixel art HomeCommander logo for 3 seconds first as a splash screen!
+        logo_path = "../assets/homecommander_logo.png"
+        if os.path.exists(logo_path):
+            logging.info("Auto-starting brand logo startup splash (3s)...")
+            service.trigger_mode_change(9, image_path=logo_path)
+            time.sleep(3)
+        
+        # 2. Transition to the appropriate time-of-day default mode
         if 1 <= now_hour < 7:
             service.trigger_mode_change(18)
             logging.info("Auto-started Cozy Night Mode (mode 18) at server launch (Night hours).")

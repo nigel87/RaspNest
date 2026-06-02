@@ -41,8 +41,29 @@ static int GetStockTextWidth(const rgb_matrix::Font &font, const std::string &te
       width += 5; // 4px + 1px spacing
       i += 3;
     } else {
-      width += font.CharacterWidth(text[i]);
-      i++;
+      unsigned char c = (unsigned char)text[i];
+      int len = 1;
+      uint32_t codepoint = c;
+      
+      if (c >= 192 && c <= 223) {
+        len = 2;
+        if (i + 1 < text.size()) {
+          codepoint = ((text[i] & 0x1F) << 6) | (text[i+1] & 0x3F);
+        }
+      } else if (c >= 224 && c <= 239) {
+        len = 3;
+        if (i + 2 < text.size()) {
+          codepoint = ((text[i] & 0x0F) << 12) | ((text[i+1] & 0x3F) << 6) | (text[i+2] & 0x3F);
+        }
+      } else if (c >= 240 && c <= 247) {
+        len = 4;
+        if (i + 3 < text.size()) {
+          codepoint = ((text[i] & 0x07) << 18) | ((text[i+1] & 0x3F) << 12) | ((text[i+2] & 0x3F) << 6) | (text[i+3] & 0x3F);
+        }
+      }
+      
+      width += font.CharacterWidth(codepoint);
+      i += len;
     }
   }
   return width;
@@ -80,10 +101,35 @@ static void DrawStockText(FrameCanvas *canvas, const rgb_matrix::Font &font, int
       cur_x += 5; // 4px + 1px spacing
       i += 3;
     } else {
-      char c_str[2] = { text[i], '\0' };
+      unsigned char c = (unsigned char)text[i];
+      int len = 1;
+      uint32_t codepoint = c;
+      
+      if (c >= 192 && c <= 223) {
+        len = 2;
+        if (i + 1 < text.size()) {
+          codepoint = ((text[i] & 0x1F) << 6) | (text[i+1] & 0x3F);
+        }
+      } else if (c >= 224 && c <= 239) {
+        len = 3;
+        if (i + 2 < text.size()) {
+          codepoint = ((text[i] & 0x0F) << 12) | ((text[i+1] & 0x3F) << 6) | (text[i+2] & 0x3F);
+        }
+      } else if (c >= 240 && c <= 247) {
+        len = 4;
+        if (i + 3 < text.size()) {
+          codepoint = ((text[i] & 0x07) << 18) | ((text[i+1] & 0x3F) << 12) | ((text[i+2] & 0x3F) << 6) | (text[i+3] & 0x3F);
+        }
+      }
+      
+      char c_str[5] = {0};
+      for (int k = 0; k < len && i + k < text.size(); ++k) {
+        c_str[k] = text[i + k];
+      }
+      
       rgb_matrix::DrawText(canvas, font, cur_x, y, color, NULL, c_str, 0);
-      cur_x += font.CharacterWidth(text[i]);
-      i++;
+      cur_x += font.CharacterWidth(codepoint);
+      i += len;
     }
   }
 }
@@ -219,7 +265,8 @@ int main(int argc, char *argv[]) {
       struct tm tm;
       localtime_r(&now_time, &tm);
       char time_text[6];
-      strftime(time_text, sizeof(time_text), "%H:%M", &tm);
+      const char* time_fmt = (now_time % 2 == 0) ? "%H:%M" : "%H %M";
+      strftime(time_text, sizeof(time_text), time_fmt, &tm);
       rgb_matrix::DrawText(offscreen, clock_font, 1, clock_y, clock_color, NULL, time_text, 0);
 
       // 2. Draw Scrolling Music Info in bottom-left
@@ -276,7 +323,8 @@ int main(int argc, char *argv[]) {
       struct tm tm;
       localtime_r(&now_time, &tm);
       char time_text[6];
-      strftime(time_text, sizeof(time_text), "%H:%M", &tm);
+      const char* time_fmt = (now_time % 2 == 0) ? "%H:%M" : "%H %M";
+      strftime(time_text, sizeof(time_text), time_fmt, &tm);
       rgb_matrix::DrawText(offscreen, clock_font, 2, clock_y, clock_color, NULL, time_text, 0);
 
       // 3. Render Temp/Weather at top-right

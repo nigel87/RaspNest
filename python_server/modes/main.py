@@ -155,6 +155,35 @@ BBC_RSS_FEED_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
 STOCKS_TO_TRACK = ["GOOG", "BTC-USD", "^GSPC", "EXV3.DE"]
 displayed_news = set()
 
+rss_cache = {}
+RSS_CACHE_DURATION = 300  # 5 minutes cache
+
+def parse_feed_safely(url):
+    current_time = time.time()
+    if url in rss_cache:
+        cached_feed, cache_time = rss_cache[url]
+        if current_time - cache_time < RSS_CACHE_DURATION:
+            logging.debug(f"[Main Features] Using cached RSS feed for {url}")
+            return cached_feed
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
+    }
+    try:
+        logging.debug(f"[Main Features] Querying RSS feed: {url}")
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code != 200:
+            logging.error(f"[Main Features] RSS feed {url} returned HTTP status {res.status_code}")
+            return None
+        feed = feedparser.parse(res.content)
+        if getattr(feed, "bozo", 0) == 1:
+            logging.warning(f"[Main Features] RSS feed parser bozo exception for {url}: {feed.bozo_exception}")
+        rss_cache[url] = (feed, current_time)
+        return feed
+    except Exception as e:
+        logging.error(f"[Main Features] RSS error querying feed {url}: {e}", exc_info=True)
+        return None
+
 def write_dashboard_data(temp, bottom_left, bl_color, bottom_right, br_color, bus_pred="ND", bus_color="150,150,150", is_music_playing="0", music_scroll_text=""):
     """
     Writes the static dashboard details to the plain text file.
@@ -209,13 +238,14 @@ def run(stop_event):
     rss_feeds = [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]
     for url in rss_feeds:
         try:
-            feed = feedparser.parse(url)
-            for entry in feed.entries:
-                if "title" in entry:
-                    clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
-                    displayed_news.add(clean_title)
-        except Exception:
-            pass
+            feed = parse_feed_safely(url)
+            if feed and feed.entries:
+                for entry in feed.entries:
+                    if "title" in entry:
+                        clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
+                        displayed_news.add(clean_title)
+        except Exception as e:
+            logging.error(f"[Main Features] Error during startup news population for {url}: {e}")
 
     # 3. Spawn C++ dashboard process in the background
     cpp_dashboard = os.path.join(CPP_BINARY_FOLDER, 'dashboard')
@@ -426,22 +456,30 @@ def run(stop_event):
         if widget_config.get("enable_news_flash", True):
             if current_time - last_rss_fetch >= 300 or last_rss_fetch == 0:
                 last_rss_fetch = current_time
+                new_headlines_found = []
                 for url in rss_feeds:
                     if stop_event.is_set():
                         break
                     try:
-                        feed = feedparser.parse(url)
-                        for entry in feed.entries:
-                            clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
-                            if "title" in entry and clean_title not in displayed_news:
-                                new_headline = clean_title
-                                new_summary = entry.get("summary", entry.get("description", ""))
-                                displayed_news.add(clean_title)
-                                break
-                        if new_headline:
-                            break
-                    except Exception:
-                        pass
+                        feed = parse_feed_safely(url)
+                        if feed and feed.entries:
+                            for entry in feed.entries:
+                                clean_title = entry.title.replace('\n', ' ').replace('\r', ' ').strip()
+                                if "title" in entry and clean_title not in displayed_news:
+                                    new_headlines_found.append({
+                                        "title": clean_title,
+                                        "summary": entry.get("summary", entry.get("description", ""))
+                                    })
+                                    displayed_news.add(clean_title)
+                                    break  # Grab at most 1 new headline per feed per fetch
+                    except Exception as e:
+                        logging.error(f"[Main Features] Exception in news flash check for {url}: {e}", exc_info=True)
+                
+                if new_headlines_found:
+                    import random
+                    selected = random.choice(new_headlines_found)
+                    new_headline = selected["title"]
+                    new_summary = selected["summary"]
 
         if new_headline:
             logging.info(f"[Main Features] PRIORITY NEWS FLASH: {new_headline}")
@@ -456,6 +494,7 @@ def run(stop_event):
                 }
                 
             try:
+                run.in_priority_news_flash = True
                 write_dashboard_data(temp_cache, "FLASH", RED, new_headline, GOLD, cached_bus_pred, cached_bus_color, is_music_playing="0", music_scroll_text="")
                 
                 # Dynamically calculate the perfect sleep duration so the entire headline scrolls across the screen
@@ -464,12 +503,20 @@ def run(stop_event):
                 clipping_boundary = 2 + len("FLASH") * 5 + 2 # ~29px
                 max_br_width = 64 - clipping_boundary - 2 # ~33px
                 
+                # Load news scroll count from widget config
+                scroll_count = 2
+                try:
+                    scroll_count = int(widget_config.get("news_scroll_count", 2))
+                except Exception:
+                    pass
+                scroll_count = max(1, min(4, scroll_count))
+
                 if headline_width <= max_br_width:
-                    display_time = 8.0 # Fits statically, show for 8 seconds
+                    display_time = 8.0 * scroll_count # Fits statically, show for 8 * scroll_count seconds
                 else:
-                    display_time = (64 + headline_width) * 0.060 # Exact scroll duration in seconds
+                    display_time = (64 + headline_width) * 0.060 * scroll_count # Exact scroll duration in seconds multiplied by repeat count
                     
-                logging.info(f"[Main Features] Sleeping for dynamic duration: {display_time:.1f}s")
+                logging.info(f"[Main Features] Sleeping for dynamic duration: {display_time:.1f}s (repeats: {scroll_count}x)")
                 
                 # Check for stop_event every 100ms to react immediately to action button presses
                 start_time = time.time()
@@ -478,6 +525,7 @@ def run(stop_event):
                         break
                     time.sleep(0.1)
             finally:
+                run.in_priority_news_flash = False
                 with state.state_lock:
                     state.is_news_scrolling = False
                     state.current_news_entry = None
@@ -491,6 +539,13 @@ def run(stop_event):
         # C. Rotate Widgets on the bottom row every 5 seconds
         if current_time - last_widget_rotate >= 5.0 or last_widget_rotate == 0:
             last_widget_rotate = current_time
+
+            # Clear slot news scrolling state for the new slot rotation by default
+            from python_server.shared import state
+            with state.state_lock:
+                if not getattr(run, "in_priority_news_flash", False):
+                    state.is_news_scrolling = False
+                    state.current_news_entry = None
 
             # --- Bottom Left Widget ---
             bl_widget_type = widget_config.get("bottom_left_widget", "calendar")
@@ -546,19 +601,61 @@ def run(stop_event):
                     br_text = "Stocks"
             elif br_widget_type == "news":
                 try:
-                    # Grab a dynamic headline from ANSA feed
-                    import feedparser
-                    feed = feedparser.parse(ANSA_RSS_FEED_URL)
-                    if feed.entries:
-                        latest_title = feed.entries[0].title
+                    # Choose feed URL based on news source configuration
+                    ns = widget_config.get("news_source", "all")
+                    
+                    entries = []
+                    if ns == "all":
+                        # Aggregate all news feeds combined
+                        for url in [ANSA_RSS_FEED_URL, BALLKANWEB_RSS_FEED_URL, BBC_RSS_FEED_URL]:
+                            try:
+                                feed = parse_feed_safely(url)
+                                if feed and feed.entries:
+                                    entries.extend(feed.entries)
+                            except Exception as e:
+                                logging.error(f"[Main Features] Slot news parse exception for {url}: {e}")
+                    else:
+                        source_url = ANSA_RSS_FEED_URL
+                        if ns == "balkanweb":
+                            source_url = BALLKANWEB_RSS_FEED_URL
+                        elif ns == "bbc":
+                            source_url = BBC_RSS_FEED_URL
+                        
+                        feed = parse_feed_safely(source_url)
+                        if feed and feed.entries:
+                            entries = feed.entries
+
+                    if entries:
+                        # Cycle through the feed entries
+                        if not hasattr(run, "news_cycle_idx"):
+                            run.news_cycle_idx = 0
+                        
+                        idx = run.news_cycle_idx % len(entries)
+                        entry = entries[idx]
+                        
+                        latest_title = entry.title
                         latest_clean = latest_title.replace('\n', ' ').replace('\r', ' ').strip()
-                        # Shorten to fit 7 chars nicely
-                        br_text = latest_clean[:7]
+                        
+                        # Full title to allow scrolling in C++ dashboard
+                        br_text = latest_clean
                         br_color = GOLD
+                        
+                        # Set global news state so context-aware action button knows what is scrolling
+                        from python_server.shared import state
+                        with state.state_lock:
+                            state.is_news_scrolling = True
+                            state.current_news_entry = {
+                                "title": entry.title,
+                                "summary": entry.get("summary", entry.get("description", ""))
+                            }
+                        
+                        # Advance index for the next rotation cycle
+                        run.news_cycle_idx += 1
                     else:
                         br_text = "News"
                         br_color = GOLD
-                except Exception:
+                except Exception as e:
+                    logging.error(f"[Main Features] Error parsing slot news feed: {e}")
                     br_text = "News"
                     br_color = GOLD
             elif br_widget_type == "football_live":

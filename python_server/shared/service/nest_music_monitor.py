@@ -138,6 +138,11 @@ def start_monitoring(display_service):
                 if cast:
                     logging.info(f"Found Google Cast device '{GOOGLE_NEST_MINI_NAME}' at {cast.cast_info.host}:{cast.cast_info.port}")
                     
+                    # Store discovered IP in global state
+                    from python_server.shared import state
+                    with state.state_lock:
+                        state.nest_mini_ip = cast.cast_info.host
+                        
                     # Connect to device
                     cast.wait()
                     logging.info(f"Connected to Nest Mini: {cast.name}")

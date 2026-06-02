@@ -73,6 +73,54 @@ def stop_clock_process():
             clock_process = None
 
 
+def preprocess_text(text):
+    if not isinstance(text, str):
+        return text
+
+    # Read latest configuration to check options
+    config = {
+        "news_uppercase": False,
+        "news_normalize": True
+    }
+    try:
+        import json
+        from python_server.shared.constants import WIDGET_CONFIG_FILE
+        if os.path.exists(WIDGET_CONFIG_FILE):
+            with open(WIDGET_CONFIG_FILE, 'r') as f:
+                config.update(json.load(f))
+    except Exception as e:
+        logging.error(f"Error reading widget config for text preprocess: {e}")
+
+    # 1. Handle language normalization (accented characters like Ç/Ë -> C/E)
+    if config.get("news_normalize", True):
+        replacements = {
+            'ë': 'e', 'Ë': 'E',
+            'ç': 'c', 'Ç': 'C',
+            'à': 'a', 'À': 'A',
+            'è': 'e', 'È': 'E',
+            'é': 'e', 'É': 'E',
+            'ì': 'i', 'Ì': 'I',
+            'ò': 'o', 'Ò': 'O',
+            'ù': 'u', 'Ù': 'U',
+            'â': 'a', 'Â': 'A',
+            'ê': 'e', 'Ê': 'E',
+            'î': 'i', 'Î': 'I',
+            'ô': 'o', 'Ô': 'O',
+            'û': 'u', 'Û': 'U',
+            'ä': 'a', 'Ä': 'A',
+            'ö': 'o', 'Ö': 'O',
+            'ü': 'u', 'Ü': 'U',
+            'ñ': 'n', 'Ñ': 'N'
+        }
+        for k, v in replacements.items():
+            text = text.replace(k, v)
+
+    # 2. Handle uppercase conversion
+    if config.get("news_uppercase", False):
+        text = text.upper()
+
+    return text
+
 def display_on_matrix(title, colour, stop_event):
     if not os.path.exists(CPP_BINARY_PATH):
         logging.error(f"Errore: Il file binario non esiste al percorso: {CPP_BINARY_PATH}")
@@ -81,6 +129,9 @@ def display_on_matrix(title, colour, stop_event):
     if not os.access(CPP_BINARY_PATH, os.X_OK):
         logging.error(f"Errore: Il file binario non ha i permessi di esecuzione: {CPP_BINARY_PATH}")
         return
+
+    # Preprocess text according to settings (normalization and casing)
+    title = preprocess_text(title)
 
     args = [CPP_BINARY_PATH, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'), title,
             '--led-no-hardware-pulse', '--led-cols=64', '--led-gpio-mapping=adafruit-hat',
@@ -121,6 +172,8 @@ def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_even
         logging.error(f"Errore: Il file binario non ha i permessi di esecuzione: {CPP_CLOCK_WITH_TEXT_PATH}")
         return
 
+    # Preprocess text according to settings (normalization and casing)
+    scroll_text = preprocess_text(scroll_text)
 
     cmd = [
         CPP_CLOCK_WITH_TEXT_PATH, '-f', os.path.join(CPP_BINARY_FOLDER, '../fonts/9x18.bdf'),
@@ -148,6 +201,7 @@ def run_clock_with_scrolling_text(scroll_text,text_colour,clock_color, stop_even
             process.terminate()
             process.wait()
             logging.info("Process terminated.")
+
 
 
 def start_scrolling_text(args):

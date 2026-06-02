@@ -1,3 +1,4 @@
 pychromecast>=13.0.0
 requests>=2.28.0
 yfinance>=0.2.40
+gtfs-realtime-bindings>=2.0.0
